@@ -20,7 +20,7 @@
 html,body{height:100%}
 body{font-family:'Inter',system-ui,sans-serif;background:var(--abyss);color:var(--ink);
   overflow:hidden;-webkit-font-smoothing:antialiased}
-#app{display:grid;grid-template-columns:300px 1fr;grid-template-rows:auto minmax(0,1fr) 156px;
+#app{display:grid;grid-template-columns:300px 1fr;grid-template-rows:auto minmax(0,1fr) 250px;
   height:100vh;max-height:100vh;overflow:hidden;
   grid-template-areas:"head head" "rail map" "rail charts"}
 header{grid-area:head;display:flex;align-items:baseline;gap:16px;padding:14px 20px;
@@ -84,10 +84,10 @@ header .count .sep{color:var(--faint);margin:0 8px;font-family:'Inter'}
 #focusBanner .x:hover{color:var(--coral);border-color:var(--coral)}
 
 #charts{grid-area:charts;background:var(--deep);border-top:1px solid var(--line);
-  display:grid;grid-template-columns:1.55fr 1.1fr 1fr;gap:1px;min-height:0;overflow:hidden}
-.chart{padding:11px 16px 9px;display:flex;flex-direction:column;min-width:0;min-height:0;overflow:hidden;background:var(--deep);border-left:1px solid var(--line)}
+  display:grid;grid-template-columns:1.5fr 0.72fr 1.85fr;gap:1px;min-height:0;overflow:hidden}
+.chart{padding:11px 16px 12px;display:flex;flex-direction:column;min-width:0;min-height:0;overflow:hidden;background:var(--deep);border-left:1px solid var(--line)}
 .chart:first-child{border-left:none}
-.chart .ct{font-size:10.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--faint);margin-bottom:8px;display:flex;justify-content:space-between}
+.chart .ct{font-size:10.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--faint);margin-bottom:5px;display:flex;justify-content:space-between;gap:8px;align-items:center}
 .chart .ct .hint{color:var(--teal);font-size:10px;letter-spacing:.04em;text-transform:none;opacity:0}
 .chart:hover .ct .hint{opacity:.85}
 .bars{flex:1;display:flex;align-items:stretch;gap:2px;min-height:0}
@@ -96,10 +96,18 @@ header .count .sep{color:var(--faint);margin:0 8px;font-family:'Inter'}
 .bar:hover .b{background:var(--coral)}
 .bar.on .b{background:var(--teal)}
 .bar .x{font-size:8.5px;color:var(--faint);margin-top:4px;white-space:nowrap;font-variant-numeric:tabular-nums}
-.depthbars{flex:1;display:flex;flex-direction:column;gap:2px;justify-content:space-between;overflow:hidden}
+.depthbars{flex:1;display:flex;flex-direction:column;gap:1px;justify-content:flex-start;overflow-y:auto;overflow-x:hidden;padding-right:4px;min-height:0}
+.depthbars::-webkit-scrollbar{width:5px}
+.depthbars::-webkit-scrollbar-thumb{background:var(--line);border-radius:3px}
 .dband{display:flex;align-items:center;gap:6px}
 .dband .db{height:8px;background:linear-gradient(90deg,var(--teal),var(--amber));border-radius:2px;min-width:1px;transition:width .2s}
 .dband .dn{font-size:9px;color:var(--faint);font-variant-numeric:tabular-nums}
+.dseg{display:flex;gap:3px}
+.dseg button{background:none;border:1px solid var(--line);color:var(--faint);font-family:inherit;font-size:9px;letter-spacing:.04em;text-transform:uppercase;padding:2px 6px;border-radius:5px;cursor:pointer;line-height:1.2}
+.dseg button:hover{color:var(--teal);border-color:var(--teal)}
+.dseg button.on{background:var(--teal);color:var(--abyss);border-color:var(--teal)}
+.dnote{font-size:9.5px;color:var(--faint);line-height:1.4;margin-top:4px;font-style:italic}
+.depthbars svg text{font-family:'Inter',sans-serif}
 
 /* AI drawer */
 #ai{position:fixed;top:0;right:0;width:400px;max-width:92vw;height:100vh;background:var(--deep);
@@ -141,7 +149,7 @@ header .count .sep{color:var(--faint);margin:0 8px;font-family:'Inter'}
 #scrim.open{opacity:1;pointer-events:auto}
 
 @media(max-width:820px){
-  #app{grid-template-columns:1fr;grid-template-rows:auto 200px 1fr 116px;grid-template-areas:"head" "charts" "map" "rail"}
+  #app{grid-template-columns:1fr;grid-template-rows:auto 270px 1fr 116px;grid-template-areas:"head" "charts" "map" "rail"}
   #rail{border-right:none;border-top:1px solid var(--line)}
   header h1{font-size:16px}header .sub{display:none}
 }
@@ -168,6 +176,11 @@ header .count .sep{color:var(--faint);margin:0 8px;font-family:'Inter'}
     </div>
     <div class="group" id="sexGroup"><div class="lbl">Sex</div></div>
     <div class="group" id="siteGroup"><div class="lbl">Dive site</div></div>
+    <div class="group" id="switchGroup">
+      <div class="lbl">Movement</div>
+      <label class="opt"><input type="checkbox" id="switchChk"><span>Show site switches</span><span class="n" id="switchN"></span></label>
+      <div class="note">Turns the map into a movement view: every animal seen at more than one site gets its sites linked by <b>arrows in time order</b> (first → latest). Works in either map mode.</div>
+    </div>
     <div class="group">
       <div class="lbl"><span>Year</span><button class="btn" id="resetYear">all</button></div>
       <div class="range"><div class="vals"><b id="yrLo"></b><b id="yrHi"></b></div>
@@ -204,7 +217,7 @@ header .count .sep{color:var(--faint);margin:0 8px;font-family:'Inter'}
   <div id="charts">
     <div class="chart"><div class="ct"><span>Sightings by year</span><span class="hint">click to filter</span></div><div class="bars" id="yearBars"></div></div>
     <div class="chart"><div class="ct"><span>By month (seasonality)</span><span class="hint">click to filter</span></div><div class="bars" id="monthBars"></div></div>
-    <div class="chart"><div class="ct"><span>Depth profile</span></div><div class="depthbars" id="depthBars"></div></div>
+    <div class="chart"><div class="ct"><span id="depthTitle">Depth profile</span><span class="dseg" id="depthSeg"><button data-v="profile" class="on">Profile</button><button data-v="spread">Spread</button><button data-v="trend">Trend</button></span></div><div class="depthbars" id="depthBars"></div></div>
   </div>
 </div>
 
@@ -374,12 +387,17 @@ const PROFILE={
 const SEX=[{k:0,name:'Male',col:'#ec7551'},{k:1,name:'Female',col:'#f2c14e'},{k:2,name:'Unknown',col:'#7d97a4'}];
 const SITES=['The Steps','The Monument','The Leap','Kurnell','Other'];
 const MONTHS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+// Distinct dive sites visited by each individual → used to find "site switchers"
+const IND_SITES={},IND_NSITES={};
+ROWS.forEach(d=>{if(d[8]>=0)(IND_SITES[d[8]]=IND_SITES[d[8]]||new Set()).add(d[6]);});
+for(const k in IND_SITES)IND_NSITES[k]=IND_SITES[k].size;
+const SWITCHER_COUNT=Object.values(IND_NSITES).filter(n=>n>=2).length;
 
 const yrs=ROWS.filter(d=>d[3]).map(d=>d[3]);const YMIN=Math.min(...yrs),YMAX=Math.max(...yrs);
 const DMAX=Math.ceil(Math.max(...ROWS.filter(d=>d[2]!=null).map(d=>Math.abs(d[2]))));
 const MAXSIGHT=Math.max(...COUNTS);
 const F={mode:'sightings',sex:new Set([0,1,2]),site:new Set([0,1,2,3,4]),yr:[YMIN,YMAX],dp:[0,DMAX],
-  months:new Set(),minSight:1,hr:[0,23],focus:null};
+  months:new Set(),minSight:1,hr:[0,23],focus:null,depthView:'profile',switchers:false};
 
 /* ---------- Map ---------- */
 const map=L.map('map',{zoomControl:true,preferCanvas:true}).setView([-33.99,151.22],11);
@@ -389,9 +407,11 @@ const cluster=L.markerClusterGroup({maxClusterRadius:42,showCoverageOnHover:fals
   iconCreateFunction:c=>{const n=c.getChildCount();const s=n<10?28:n<100?34:n<1000?42:52;
     return L.divIcon({html:`<div class="cluster" style="width:${s}px;height:${s}px;font-size:${n<1000?12:11}px;background:radial-gradient(circle at 35% 30%,#f2c14e,#ec7551)">${n}</div>`,className:'',iconSize:[s,s]});}});
 map.addLayer(cluster);
+const lineLayer=L.layerGroup().addTo(map);
 
 function passes(d){
   if(F.focus!=null)return d[8]===F.focus;
+  if(F.switchers&&!(d[8]>=0&&IND_NSITES[d[8]]>=2))return false;
   if(!F.sex.has(d[5]))return false;
   if(!F.site.has(d[6]))return false;
   if(d[3]&&(d[3]<F.yr[0]||d[3]>F.yr[1]))return false;
@@ -407,7 +427,7 @@ function median(a){a=[...a].sort((x,y)=>x-y);const m=a.length>>1;return a.length
 function modalSex(rows){let m=0,f=0;rows.forEach(d=>{if(d[5]===0)m++;else if(d[5]===1)f++;});return (m||f)?(m>=f?0:1):2;}
 
 function render(){
-  cluster.clearLayers();viewRows=[];const inds=new Set();
+  cluster.clearLayers();lineLayer.clearLayers();viewRows=[];const inds=new Set();
   const yc={},mc=new Array(13).fill(0),db={};const groups={};
   for(const d of ROWS){
     if(!passes(d))continue;viewRows.push(d);
@@ -416,29 +436,46 @@ function render(){
     if(d[2]!=null){const b=Math.min(Math.floor(Math.abs(d[2])/2)*2,DMAX);db[b]=(db[b]||0)+1;}
   }
   const ms=[];
-  if(F.mode==='individuals'&&F.focus==null){
+  if(F.switchers&&F.focus==null){
+    // Movement view: every multi-site animal shown as per-site dots + arrowed path
+    for(const key in groups){
+      const idx=+key,g=groups[key],sx=SEX[modalSex(g)];
+      const sc={};g.forEach(d=>sc[d[6]]=(sc[d[6]]||0)+1);
+      if(Object.keys(sc).length>=2){drawSwitcher(idx,g,sx);continue;}
+      // in-view sightings collapsed to one site under other filters → faint single dot
+      const lat=median(g.map(d=>d[0])),lng=median(g.map(d=>d[1])),rr=Math.min(20,7+Math.sqrt(g.length)*2);
+      L.marker([lat,lng],{icon:L.divIcon({className:'',iconSize:[rr*2,rr*2],
+        html:`<div class="dot idot" style="width:${rr*2}px;height:${rr*2}px;background:${sx.col};opacity:.45"><span>${g.length>1?g.length:''}</span></div>`})})
+        .bindPopup(`<div class="pdate">Individual #${idx}</div><div class="prow">Only one site in current filters \u2014 widen filters to see its switches.</div><button class="popbtn" onclick="focusIndiv(${idx})">Track this individual →</button>`).addTo(lineLayer);
+    }
+  } else if(F.mode==='individuals'&&F.focus==null){
     for(const key in groups){
       const idx=+key,g=groups[key];
       const lat=median(g.map(d=>d[0])),lng=median(g.map(d=>d[1]));
       const sx=SEX[modalSex(g)];
-      const r=Math.min(27,8+Math.sqrt(g.length)*2.4);
-      const m=L.marker([lat,lng],{icon:L.divIcon({className:'',iconSize:[r*2,r*2],
-        html:`<div class="dot idot" style="width:${r*2}px;height:${r*2}px;background:${sx.col}"><span>${g.length>1?g.length:''}</span></div>`})});
       const ys=g.filter(d=>d[3]).map(d=>d[3]);
       const fy=ys.length?Math.min(...ys):null,ly=ys.length?Math.max(...ys):null;
       const sc={};g.forEach(d=>sc[d[6]]=(sc[d[6]]||0)+1);
-      const mainSite=SITES[+Object.entries(sc).sort((a,b)=>b[1]-a[1])[0][0]];
+      const siteEntries=Object.entries(sc).sort((a,b)=>b[1]-a[1]);
+      const mainSite=SITES[+siteEntries[0][0]];
+      const nSites=siteEntries.length;
+      const siteLine=nSites>1
+        ?`<div class="prow">Sites · <b>${siteEntries.map(([i,c])=>`${SITES[+i]} (${c})`).join(', ')}</b></div>`
+        :`<div class="prow">Main site · <b>${mainSite}</b></div>`;
       const recent=g.reduce((a,d)=>(!a||(d[3]||0)>=(a[3]||0))?d:a,null);
       const url=`https://wildbook.seadragonsearch.org/encounters/encounter.jsp?number=${recent[7]}`;
       const inView=g.length!==COUNTS[idx]?` (<b>${g.length}</b> in view)`:'';
-      m.bindPopup(`<div class="pdate">Individual #${idx}</div>
+      const popup=`<div class="pdate">Individual #${idx}</div>
         <div class="prow">Seen <b>${COUNTS[idx]}×</b> total${inView}</div>
         <div class="prow">Sex · <b>${sx.name}</b></div>
-        <div class="prow">Main site · <b>${mainSite}</b></div>
+        ${siteLine}
         ${fy?`<div class="prow">Years · <b>${fy}${ly&&ly!==fy?'–'+ly:''}</b></div>`:''}
         <button class="popbtn" onclick="focusIndiv(${idx})">Track this individual →</button>
-        <a href="${url}" target="_blank" rel="noopener">View latest record →</a>`);
-      ms.push(m);
+        <a href="${url}" target="_blank" rel="noopener">View latest record →</a>`;
+      const r=Math.min(27,8+Math.sqrt(g.length)*2.4);
+      const m=L.marker([lat,lng],{icon:L.divIcon({className:'',iconSize:[r*2,r*2],
+        html:`<div class="dot idot" style="width:${r*2}px;height:${r*2}px;background:${sx.col}"><span>${g.length>1?g.length:''}</span></div>`})});
+      m.bindPopup(popup);ms.push(m);
     }
   } else {
     for(const d of viewRows){
@@ -460,7 +497,60 @@ function render(){
   cluster.addLayers(ms);
   document.getElementById('cEnc').textContent=viewRows.length.toLocaleString();
   document.getElementById('cInd').textContent=inds.size.toLocaleString();
-  drawYear(yc);drawMonth(mc);drawDepth(db);updateScope(inds.size);
+  // ----- Depth aggregates for the three depth views (depth 0 = not recorded) -----
+  // (a) median-per-specimen distribution: one count per animal at its median depth
+  const dbInd={},spread=[];
+  for(const key in groups){
+    const deps=groups[key].filter(d=>d[2]!=null&&Math.abs(d[2])>0).map(d=>Math.abs(d[2]));
+    if(!deps.length)continue;
+    const b=Math.min(Math.floor(median(deps)/2)*2,DMAX);
+    dbInd[b]=(dbInd[b]||0)+1;
+    // (b) within-individual variability: depth range across that animal's sightings
+    if(deps.length>=2)spread.push(Math.max(...deps)-Math.min(...deps));
+  }
+  // (c) median depth per year (+ interquartile band) from sightings in view
+  const byYear={};
+  for(const d of viewRows){if(d[2]!=null&&Math.abs(d[2])>0&&d[3])(byYear[d[3]]=byYear[d[3]]||[]).push(Math.abs(d[2]));}
+  const yearStats={};
+  for(const y in byYear){const a=byYear[y].sort((x,z)=>x-z);
+    yearStats[y]={med:quantile(a,.5),q1:quantile(a,.25),q3:quantile(a,.75),n:a.length};}
+  _depth={db,dbInd,spread,yearStats};
+  drawYear(yc);drawMonth(mc);drawDepthPanel();updateScope(inds.size);
+}
+let _depth={db:{},dbInd:{},spread:[],yearStats:{}};
+function quantile(sortedAsc,p){if(!sortedAsc.length)return 0;const idx=(sortedAsc.length-1)*p,lo=Math.floor(idx),hi=Math.ceil(idx);
+  return lo===hi?sortedAsc[lo]:sortedAsc[lo]+(sortedAsc[hi]-sortedAsc[lo])*(idx-lo);}
+function drawDepthPanel(){
+  const t=document.getElementById('depthTitle');
+  if(F.depthView==='spread'){t.textContent='Depth spread / specimen';drawSpread(_depth.spread);}
+  else if(F.depthView==='trend'){t.textContent='Median depth / year';drawTrend(_depth.yearStats);}
+  else{const indDepth=(F.mode==='individuals'&&F.focus==null);
+    t.textContent=indDepth?'Depth profile · median per specimen':'Depth profile';
+    drawDepth(indDepth?_depth.dbInd:_depth.db);}
+}
+// Draw a site-switching individual: per-site dots + a path with arrows in time order
+function drawSwitcher(idx,g,sx){
+  const bySite={};g.forEach(d=>{(bySite[d[6]]=bySite[d[6]]||[]).push(d);});
+  const stops=Object.entries(bySite).map(([si,rows])=>({site:+si,
+    lat:median(rows.map(d=>d[0])),lng:median(rows.map(d=>d[1])),n:rows.length,
+    fy:Math.min(9999,...rows.filter(d=>d[3]).map(d=>d[3]))})).sort((a,b)=>a.fy-b.fy);
+  const seq=stops.map(s=>SITES[s.site]).join(' → ');
+  L.polyline(stops.map(s=>[s.lat,s.lng]),{color:sx.col,weight:2,opacity:.6,dashArray:'4 5'}).addTo(lineLayer);
+  // arrowhead at each leg's midpoint, rotated toward the next site
+  for(let i=0;i<stops.length-1;i++){const a=stops[i],b=stops[i+1];
+    const mLat=(a.lat+b.lat)/2,mLng=(a.lng+b.lng)/2;
+    const ang=Math.atan2((b.lng-a.lng)*Math.cos(mLat*Math.PI/180),b.lat-a.lat)*180/Math.PI;
+    L.marker([mLat,mLng],{interactive:false,icon:L.divIcon({className:'',iconSize:[16,16],
+      html:`<div style="transform:rotate(${ang.toFixed(1)}deg);color:${sx.col};font-size:14px;line-height:16px;text-align:center;text-shadow:0 0 3px #000,0 0 3px #000">\u25B2</div>`})}).addTo(lineLayer);}
+  stops.forEach((s,i)=>{const rr=Math.min(20,7+Math.sqrt(s.n)*2);
+    const tag=i===0?' first':(i===stops.length-1?' latest':'');
+    L.marker([s.lat,s.lng],{icon:L.divIcon({className:'',iconSize:[rr*2,rr*2],
+      html:`<div class="dot idot" style="width:${rr*2}px;height:${rr*2}px;background:${sx.col}"><span>${s.n>1?s.n:''}</span></div>`})})
+      .bindPopup(`<div class="pdate">#${idx} · ${SITES[s.site]}${tag}</div>
+        <div class="prow"><b>${s.n}×</b> seen here${s.fy<9999?` · from <b>${s.fy}</b>`:''}</div>
+        <div class="prow">Path: ${seq}</div>
+        <button class="popbtn" onclick="focusIndiv(${idx})">Track this individual →</button>`)
+      .addTo(lineLayer);});
 }
 window.focusIndiv=function(i){F.focus=i;map.closePopup();
   const fb=document.getElementById('focusBanner');fb.style.display='flex';
@@ -483,6 +573,32 @@ function drawDepth(db){const el=document.getElementById('depthBars');el.innerHTM
   const bands=[];for(let d=0;d<=DMAX;d+=2)bands.push(d);const mx=Math.max(1,...bands.map(b=>db[b]||0));
   bands.forEach(bd=>{const v=db[bd]||0;const r=document.createElement('div');r.className='dband';
     r.innerHTML=`<span class="dn" style="width:34px;text-align:right">${bd}–${bd+2}</span><div class="db" style="width:${v/mx*100}%"></div><span class="dn">${v||''}</span>`;el.appendChild(r);});}
+function drawSpread(arr){const el=document.getElementById('depthBars');el.innerHTML='';
+  if(!arr.length){el.innerHTML='<div class="dnote">Each bar = how much an individual\u2019s depth varies across its own sightings. Needs animals seen \u22652\u00d7 with depth recorded \u2014 widen filters or raise \u201cre-sightings per animal\u201d.</div>';return;}
+  const edges=[0,2,4,6,8,Infinity],labels=['0\u20132','2\u20134','4\u20136','6\u20138','8+'],cnt=new Array(labels.length).fill(0);
+  arr.forEach(s=>{for(let i=0;i<edges.length-1;i++){if(s>=edges[i]&&s<edges[i+1]){cnt[i]++;break;}}});
+  const mx=Math.max(1,...cnt),med=quantile([...arr].sort((a,b)=>a-b),.5);
+  labels.forEach((lb,i)=>{const v=cnt[i],r=document.createElement('div');r.className='dband';
+    r.innerHTML=`<span class="dn" style="width:34px;text-align:right">${lb} m</span><div class="db" style="width:${v/mx*100}%"></div><span class="dn">${v||''}</span>`;el.appendChild(r);});
+  const note=document.createElement('div');note.className='dnote';
+  note.textContent=`${arr.length} animals \u00b7 median spread ${med.toFixed(1)} m \u2014 most stay near one depth (strong depth fidelity).`;el.appendChild(note);}
+function drawTrend(ys){const el=document.getElementById('depthBars');el.innerHTML='';
+  const years=Object.keys(ys).map(Number).sort((a,b)=>a-b);
+  if(!years.length){el.innerHTML='<div class="dnote">No dated depth data in the current view.</div>';return;}
+  const W=300,H=88,padL=24,padR=8,padT=7,padB=15,x0=years[0],x1=years[years.length-1];
+  const xs=y=>padL+(x1===x0?0.5:(y-x0)/(x1-x0))*(W-padL-padR);
+  const yy=d=>padT+(d/DMAX)*(H-padT-padB);
+  const band=years.map(y=>`${xs(y).toFixed(1)},${yy(ys[y].q1).toFixed(1)}`)
+    .concat(years.slice().reverse().map(y=>`${xs(y).toFixed(1)},${yy(ys[y].q3).toFixed(1)}`)).join(' ');
+  const line=years.map(y=>`${xs(y).toFixed(1)},${yy(ys[y].med).toFixed(1)}`).join(' ');
+  let s=`<svg viewBox="0 0 ${W} ${H}" width="100%" height="100%" preserveAspectRatio="none">`;
+  [0,DMAX/2,DMAX].forEach(dv=>{const Y=yy(dv);s+=`<line x1="${padL}" y1="${Y}" x2="${W-padR}" y2="${Y}" stroke="var(--line)" stroke-width="0.5"/><text x="0" y="${Y+3}" fill="var(--faint)" font-size="8">${Math.round(dv)}m</text>`;});
+  s+=`<polygon points="${band}" fill="var(--teal)" opacity="0.15"/><polyline points="${line}" fill="none" stroke="var(--amber)" stroke-width="1.6"/>`;
+  years.forEach(y=>{s+=`<circle cx="${xs(y).toFixed(1)}" cy="${yy(ys[y].med).toFixed(1)}" r="2" fill="var(--amber)"><title>${y}: median ${ys[y].med.toFixed(1)} m (IQR ${ys[y].q1.toFixed(1)}\u2013${ys[y].q3.toFixed(1)} m, n=${ys[y].n})</title></circle>`;});
+  s+=`<text x="${xs(x0).toFixed(1)}" y="${H-3}" fill="var(--faint)" font-size="8">${x0}</text><text x="${xs(x1).toFixed(1)}" y="${H-3}" fill="var(--faint)" font-size="8" text-anchor="end">${x1}</text></svg>`;
+  el.innerHTML=s;
+  const note=document.createElement('div');note.className='dnote';
+  note.textContent='Line = median depth per year; shaded = 25\u201375%. Shifts may reflect which sites/divers were active that year, not real depth change.';el.appendChild(note);}
 
 /* ---------- Filter UI ---------- */
 function buildChecks(gid,items,set){const g=document.getElementById(gid);
@@ -491,6 +607,21 @@ function buildChecks(gid,items,set){const g=document.getElementById(gid);
     row.querySelector('input').onchange=e=>{e.target.checked?set.add(it.k):set.delete(it.k);render();};g.appendChild(row);});}
 buildChecks('sexGroup',SEX.map(s=>({...s,count:ROWS.filter(d=>d[5]===s.k).length})),F.sex);
 buildChecks('siteGroup',SITES.map((s,i)=>({k:i,name:s,count:ROWS.filter(d=>d[6]===i).length})),F.site);
+// Counts shown next to Sex / Dive site switch with the Sightings/Individuals toggle.
+// Sightings = raw rows. Individuals = distinct animals, attributed by their modal sex / main site (matches the map).
+const SEX_SIGHT=SEX.map(s=>ROWS.filter(d=>d[5]===s.k).length);
+const SITE_SIGHT=SITES.map((s,i)=>ROWS.filter(d=>d[6]===i).length);
+const SEX_IND=[0,0,0],SITE_IND=SITES.map(()=>0);
+(function(){const g={};ROWS.forEach(d=>{if(d[8]>=0)(g[d[8]]=g[d[8]]||[]).push(d);});
+  for(const k in g){const rws=g[k];SEX_IND[modalSex(rws)]++;
+    const sc={};rws.forEach(d=>sc[d[6]]=(sc[d[6]]||0)+1);
+    SITE_IND[+Object.entries(sc).sort((a,b)=>b[1]-a[1])[0][0]]++;}})();
+function updateFilterCounts(){const ind=(F.mode==='individuals');
+  document.querySelectorAll('#sexGroup .opt .n').forEach((el,i)=>el.textContent=ind?SEX_IND[i]:SEX_SIGHT[i]);
+  document.querySelectorAll('#siteGroup .opt .n').forEach((el,i)=>el.textContent=ind?SITE_IND[i]:SITE_SIGHT[i]);}
+updateFilterCounts();
+document.getElementById('switchN').textContent=SWITCHER_COUNT;
+document.getElementById('switchChk').onchange=e=>{F.switchers=e.target.checked;render();};
 
 function dual(minId,maxId,fillId,lo,hi,onChange){const mn=document.getElementById(minId),mx=document.getElementById(maxId),fill=document.getElementById(fillId);
   mn.min=mx.min=lo;mn.max=mx.max=hi;mn.value=lo;mx.value=hi;
@@ -512,12 +643,13 @@ const hSl=dual('hrMin','hrMax','hrFill',0,23,(a,b)=>{F.hr=[a,b];hrLo.textContent
 resetYear.onclick=()=>{F.yr=[YMIN,YMAX];ySl.reset();render();};
 resetDepth.onclick=()=>{F.dp=[0,DMAX];dSl.reset();render();};
 resetHr.onclick=()=>{F.hr=[0,23];hSl.reset();render();};
-resetAll.onclick=()=>{F.sex=new Set([0,1,2]);F.site=new Set([0,1,2,3,4]);F.months.clear();F.yr=[YMIN,YMAX];F.dp=[0,DMAX];F.hr=[0,23];F.minSight=1;F.focus=null;F.mode='sightings';
+resetAll.onclick=()=>{F.sex=new Set([0,1,2]);F.site=new Set([0,1,2,3,4]);F.months.clear();F.yr=[YMIN,YMAX];F.dp=[0,DMAX];F.hr=[0,23];F.minSight=1;F.focus=null;F.mode='sightings';F.depthView='profile';F.switchers=false;
   document.querySelectorAll('#modeSeg button').forEach(x=>x.classList.toggle('on',x.dataset.m==='sightings'));
+  document.querySelectorAll('#depthSeg button').forEach(x=>x.classList.toggle('on',x.dataset.v==='profile'));
   document.getElementById('modeNote').textContent='Every dot is one sighting.';
   ySl.reset();dSl.reset();hSl.reset();document.getElementById('msMin').value=1;document.getElementById('msMin').oninput();
   document.getElementById('focusBanner').style.display='none';
-  document.querySelectorAll('.opt input').forEach(c=>c.checked=true);render();};
+  document.querySelectorAll('.opt input').forEach(c=>c.checked=true);document.getElementById('switchChk').checked=false;updateFilterCounts();render();};
 
 /* ---------- Live profile for AI ---------- */
 function viewProfile(){
@@ -612,7 +744,12 @@ document.querySelectorAll('#modeSeg button').forEach(b=>b.onclick=()=>{
   document.querySelectorAll('#modeSeg button').forEach(x=>x.classList.toggle('on',x===b));
   document.getElementById('modeNote').textContent=F.mode==='individuals'
     ?'One dot per animal, sized by sighting count.':'Every dot is one sighting.';
-  render();});
+  updateFilterCounts();render();});
+
+document.querySelectorAll('#depthSeg button').forEach(b=>b.onclick=()=>{
+  F.depthView=b.dataset.v;
+  document.querySelectorAll('#depthSeg button').forEach(x=>x.classList.toggle('on',x===b));
+  drawDepthPanel();});
 
 render();
 </script>
