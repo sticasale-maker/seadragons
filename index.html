@@ -710,7 +710,7 @@ Crucial interpretation rules you must apply and surface when relevant:
 Be the careful analyst who distinguishes signal from sampling artefact.`;
 
 // Your proxy endpoint. Same-origin "/api/ask" on Vercel/Netlify; or paste the full Worker URL.
-const API_ENDPOINT="/api/ask";
+const API_ENDPOINT="https://hidden-grass-8d45.sticasale.workers.dev";
 function money(x){return x>=1?'$'+x.toFixed(2):'$'+x.toFixed(4);}
 async function ask(q){
   addU(q);history.push({role:'user',content:q});
