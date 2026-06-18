@@ -507,11 +507,12 @@ const cluster=L.markerClusterGroup({maxClusterRadius:42,showCoverageOnHover:fals
 map.addLayer(cluster);
 const lineLayer=L.layerGroup().addTo(map);
 let heatLayer=null;
+let heatPts=[];
 const HEAT_OK=typeof L.heatLayer==='function';
 function applyHeat(){
   if(!HEAT_OK)return;
   if(F.heat){
-    const pts=viewRows.map(d=>[d[0],d[1],1]);
+    const pts=heatPts;
     if(heatLayer&&map.hasLayer(heatLayer)){
       heatLayer.setLatLngs(pts);            // already live & visible → update in place
     }else{
@@ -643,6 +644,14 @@ function render(){
   siteBox.sort((a,b)=>a.med-b.med);
   _depth={db,dbInd,spread,yearStats,siteBox};
   drawYear(yc);drawMonth(mc);drawDepthPanel();drawSitesBox(_depth.siteBox);updateScope(inds.size);if(expandWhich)refreshExpand();
+  // Heat points: one per individual (median location) in individuals view, else one per sighting
+  if(F.mode==='individuals'&&F.focus==null){
+    heatPts=[];
+    for(const key in groups){const g=groups[key];
+      heatPts.push([median(g.map(d=>d[0])),median(g.map(d=>d[1])),1]);}
+  }else{
+    heatPts=viewRows.map(d=>[d[0],d[1],1]);
+  }
   applyHeat();syncPick();
 }
 let _depth={db:{},dbInd:{},spread:[],yearStats:{},siteBox:[]};
