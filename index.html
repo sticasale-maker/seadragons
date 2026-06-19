@@ -311,8 +311,8 @@ header .count .sep{color:var(--faint);margin:0 8px;font-family:'Inter'}
     <div class="chart"><div class="ct"><span id="depthTitle">Depth profile</span><span class="dseg" id="depthSeg"><button data-v="profile" class="on">Profile</button><button data-v="spread">Spread</button><button data-v="trend">Trend</button></span><button class="exp" data-exp="depth" aria-label="Expand chart">Expand ↗</button></div><div class="depthbars" id="depthBars"></div></div>
   </div>
   <footer id="dq">
-    <span><b>Data quality · site labels.</b> 320 records were re-mapped from the source “Location” field. <b>103</b> use the diver’s own text; <b class="tag">217 were inferred from GPS</b> (187 blank, 24 “Australia”, 6 raw coordinates) so are lower-confidence — including most of the 213 folded into Kurnell.</span>
-    <details><summary>&nbsp;source inconsistencies ▸</summary><div class="detail">Before correction the “Location” field was uncontrolled free text: <b>94 distinct strings</b>, 187 blank (4.3%), 6 raw coordinates typed in, plus many variant spellings of one site (“Old Man’s Hat” ×9, “The Gap” ×6, “Blue Fish” ×4) and non-place entries (“Scuba diving”, “Walking my dogs at Forresters Beach”, “outer weedyland”). GPS-inferred labels rest on coordinates, not on any stated location.</div></details>
+    <span><b>Data quality · site labels.</b> Every sighting is assigned to the nearest site on the <b>Wildaware NSW dive-site picklist</b> (Terrigal→Wollongong) by GPS proximity, because the source KML carries no structured location field. <b class="tag">~96% resolve to Kurnell</b> — a diver-effort concentration, not seadragon abundance.</span>
+    <details><summary>&nbsp;source data caveats ▸</summary><div class="detail">The KML export has <b>no structured “Location ID”</b>; its only place text is a free-form “Location” that is frequently blank, set to raw coordinates, or non-place text (e.g. “Scuba diving”, “Walking my dogs at Forresters Beach”, “outer weedyland”). Site identity here is therefore inferred <b>purely from each record's GPS</b>, not from any stated location, and a few coordinates are imprecise or zeroed. Sites are the in-scope subset of the Wildaware picklist; the Eden, Jervis Bay and Shellharbour-Bass Point entries fall outside Terrigal→Wollongong and are dropped. The picklist screenshot ends alphabetically at Terrigal with <b>no Wollongong entry</b>, so a provisional <b>“Wollongong”</b> site holds the handful of genuine Illawarra-coast records rather than mis-snapping them ~45&nbsp;km north to Kurnell. <b>Voodoo</b> and <b>Oak Park</b> are valid picklist sites that currently hold zero sightings. Throughout, counts and site/time concentrations reflect diver effort and survey coverage, not population size.</div></details>
   </footer>
 </div>
 
@@ -483,9 +483,35 @@ const PROFILE={
 ]
 };      // global statistical profile
 const SEX=[{k:0,name:'Male',col:'#ec7551'},{k:1,name:'Female',col:'#f2c14e'},{k:2,name:'Unknown',col:'#7d97a4'}];
-const SITES=['The Steps','The Monument','The Leap','Kurnell','North Head (Blue Fish Pt)','Old Man\'s Hat, North Head','The Gap, South Head','Terrigal / Forresters Beach','North Bondi (Ben Buckler)','Freshwater','Clovelly (Sea Dragon Reef)','North Avalon','Cape Banks','Magic Point, Maroubra','Wollongong','Little Bay','Botany Bay (south)','Turrimetta','Cape Solander','Copacabana','Long Reef','Long Bay (Dee’s Ditch)','Flinders Islet, Wollongong','Barrenjoey Headland'];
+const SITES=['Terrigal Haven','Avalon','Mona Vale','Freshwater','Cabbage Tree Bay','Blue Fish Point','Old Mans Hat','The Gap','Bondi','Shark Point','Voodoo','Magic Point','Bare Island',"Henry's Head",'Kurnell','Oak Park','Wollongong'];
 const MONTHS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 // Distinct dive sites visited by each individual → used to find "site switchers"
+// Canonical site assignment (v10): every sighting is bucketed to the nearest site on the
+// Wildaware NSW dive-site picklist (Terrigal→Wollongong) by GPS proximity. This supersedes
+// the earlier free-text / nearest-defined-site labels. Coordinates parallel SITES, N→S;
+// longitude is cos(lat)-corrected so distances are true on the ground.
+const SITE_PT=[
+ [-33.4445,151.4490], // Terrigal Haven
+ [-33.6350,151.3300], // Avalon
+ [-33.6790,151.3095], // Mona Vale
+ [-33.7828,151.2985], // Freshwater
+ [-33.7968,151.2960], // Cabbage Tree Bay
+ [-33.8063,151.3060], // Blue Fish Point
+ [-33.8215,151.2905], // Old Mans Hat
+ [-33.8445,151.2815], // The Gap
+ [-33.8915,151.2800], // Bondi
+ [-33.9125,151.2585], // Shark Point
+ [-33.9495,151.2570], // Voodoo
+ [-33.9568,151.2655], // Magic Point
+ [-33.9915,151.2335], // Bare Island
+ [-33.9948,151.2380], // Henry's Head
+ [-34.0028,151.2262], // Kurnell
+ [-34.0655,151.1545], // Oak Park
+ [-34.4100,150.9050]  // Wollongong (provisional — see data-quality note)
+];
+ROWS.forEach(d=>{let bi=0,bd=Infinity;for(let i=0;i<SITE_PT.length;i++){const a=d[0]-SITE_PT[i][0],b=(d[1]-SITE_PT[i][1])*Math.cos(d[0]*Math.PI/180),dd=a*a+b*b;if(dd<bd){bd=dd;bi=i;}}d[6]=bi;});
+// Keep the static AI profile's by_site in sync with the re-bucketed data.
+PROFILE.by_site=Object.fromEntries(SITES.map((s,i)=>[s,ROWS.filter(d=>d[6]===i).length]).filter(x=>x[1]));
 const IND_SITES={},IND_NSITES={};
 ROWS.forEach(d=>{if(d[8]>=0)(IND_SITES[d[8]]=IND_SITES[d[8]]||new Set()).add(d[6]);});
 for(const k in IND_SITES)IND_NSITES[k]=IND_SITES[k].size;
@@ -923,7 +949,7 @@ Crucial interpretation rules you must apply and surface when relevant:
 - This is photo-ID data: each record is matched to an individual animal. ~4,300 encounters resolve to only ~269 individuals. Counts measure DIVER EFFORT and re-sighting, NOT abundance or population size.
 - Sightings-per-year rising is the citizen-science program growing, not seadragons increasing.
 - Time-of-day and day-of-week patterns reflect when people dive (mornings, weekends), not seadragon behaviour.
-- Site concentration (most records at "The Steps", Kurnell) is where divers go, not where seadragons are densest.
+- Site concentration (most records at Kurnell) is where divers go, not where seadragons are densest.
 - Weedy seadragons do not change sex; individuals with conflicting sex labels indicate ID/sexing inconsistency.
 - High re-sighting of the same individuals at the same site reflects strong site fidelity / small home range.
 Be the careful analyst who distinguishes signal from sampling artefact.`;
