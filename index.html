@@ -227,6 +227,38 @@ header .count .sep{color:var(--faint);margin:0 8px;font-family:'Inter'}
   #insightsBody{grid-template-columns:1fr}
 }
 @media(prefers-reduced-motion:reduce){*{transition:none!important}}
+/* ---- Data Quality overlay ---- */
+#dataquality{position:fixed;inset:4vh 4vw;background:var(--deep);border:1px solid var(--line);border-radius:14px;z-index:1401;display:none;flex-direction:column;box-shadow:0 30px 80px rgba(0,0,0,.5)}
+#dataquality.show{display:flex}
+#dataquality .ihead{display:flex;justify-content:space-between;align-items:center;padding:15px 22px;border-bottom:1px solid var(--line)}
+#dataquality .ihead h2{font-family:'Fraunces',serif;font-weight:600;font-size:19px;color:var(--ink)}
+#dataquality .ihead h2 em{font-style:italic;color:var(--amber);font-size:13px;font-weight:400;margin-left:8px}
+#dataquality .iclose{background:none;border:1px solid var(--line);color:var(--muted);border-radius:8px;width:30px;height:30px;cursor:pointer;font-size:14px;font-family:inherit}
+#dataquality .iclose:hover{border-color:var(--teal);color:var(--teal)}
+#dqBody{flex:1;min-height:0;overflow-y:auto;padding:18px 22px 26px}
+#dqBody::-webkit-scrollbar{width:8px}#dqBody::-webkit-scrollbar-thumb{background:var(--line);border-radius:4px}
+.dq-intro{color:var(--muted);font-size:13.5px;line-height:1.6;max-width:900px;margin:0 0 18px}
+.dq-intro b{color:var(--ink)}
+.dq-legend{display:flex;gap:14px;flex-wrap:wrap;margin:0 0 16px;font-size:11px;color:var(--faint)}
+.dq-legend span{display:inline-flex;align-items:center;gap:5px}
+.dq-dot{width:8px;height:8px;border-radius:50%}
+.dq-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:14px;align-items:start}
+.dq-card{background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:14px 16px 13px}
+.dq-ch{display:flex;align-items:center;gap:9px;margin-bottom:10px}
+.dq-ch h3{font-family:'Fraunces',serif;font-size:15.5px;font-weight:600;color:var(--ink);margin:0;flex:1;line-height:1.2}
+.dq-ico{font-size:15px;line-height:1}
+.dq-sev{font-size:10px;text-transform:uppercase;letter-spacing:.04em;padding:2px 7px;border-radius:20px;font-weight:600;white-space:nowrap}
+.sev-high{background:rgba(236,117,81,.16);color:var(--coral);border:1px solid rgba(236,117,81,.4)}
+.sev-mid{background:rgba(242,193,78,.14);color:var(--amber);border:1px solid rgba(242,193,78,.38)}
+.sev-low{background:rgba(79,209,197,.12);color:var(--teal);border:1px solid rgba(79,209,197,.34)}
+.dq-stats{list-style:none;margin:0 0 10px;padding:0}
+.dq-stats li{font-size:12.5px;color:var(--ink);line-height:1.5;padding:4px 0 4px 14px;position:relative;border-bottom:1px solid rgba(29,74,94,.45)}
+.dq-stats li:last-child{border-bottom:none}
+.dq-stats li:before{content:'';position:absolute;left:2px;top:11px;width:4px;height:4px;border-radius:50%;background:var(--faint)}
+.dq-stats b{color:var(--amber);font-variant-numeric:tabular-nums}
+.dq-act{font-size:12px;color:var(--muted);line-height:1.55;margin:0;padding-top:9px;border-top:1px solid var(--line)}
+.dq-act b{color:var(--teal)}
+.dq-act i{color:var(--faint)}
 </style>
 </head>
 <body>
@@ -235,7 +267,7 @@ header .count .sep{color:var(--faint);margin:0 8px;font-family:'Inter'}
     <h1>Weedy Seadragons <em>· Wollongong → Terrigal</em></h1>
     <span class="sub">Seadragon Search photo-ID records</span>
     <span class="count"><b id="cEnc">0</b> sightings<span class="sep">·</span><b id="cInd">0</b> individuals</span>
-    <button class="ask-btn" id="resetHdr" style="margin-left:auto;background:transparent;border:1px solid var(--line);color:var(--muted);font-weight:500">↺ Reset filters</button><button class="ask-btn insights-btn" id="insightsBtn">📊 Insights</button><button class="ask-btn" id="askBtn">✦ Ask the data</button>
+    <button class="ask-btn" id="resetHdr" style="margin-left:auto;background:transparent;border:1px solid var(--line);color:var(--muted);font-weight:500">↺ Reset filters</button><button class="ask-btn insights-btn" id="insightsBtn">📊 Insights</button><button class="ask-btn" id="dqBtn">⚑ Data Quality</button><button class="ask-btn" id="askBtn">✦ Ask the data</button>
   </header>
 
   <aside id="rail">
@@ -310,15 +342,97 @@ header .count .sep{color:var(--faint);margin:0 8px;font-family:'Inter'}
     <div class="chart"><div class="ct"><span>By month (seasonality)</span><span class="hint">click to filter</span><button class="exp" data-exp="month" aria-label="Expand chart">Expand ↗</button></div><div class="bars" id="monthBars"></div></div>
     <div class="chart"><div class="ct"><span id="depthTitle">Depth profile</span><span class="dseg" id="depthSeg"><button data-v="profile" class="on">Profile</button><button data-v="spread">Spread</button><button data-v="trend">Trend</button></span><button class="exp" data-exp="depth" aria-label="Expand chart">Expand ↗</button></div><div class="depthbars" id="depthBars"></div></div>
   </div>
-  <footer id="dq">
-    <span><b>Data quality · site labels.</b> Every sighting is assigned to the nearest site on the <b>Wildaware NSW dive-site picklist</b> (Terrigal→Wollongong) by GPS proximity, because the source KML carries no structured location field. <b class="tag">~96% resolve to Kurnell</b> — a diver-effort concentration, not seadragon abundance.</span>
-    <details><summary>&nbsp;source data caveats ▸</summary><div class="detail">The KML export has <b>no structured “Location ID”</b>; its only place text is a free-form “Location” that is frequently blank, set to raw coordinates, or non-place text (e.g. “Scuba diving”, “Walking my dogs at Forresters Beach”, “outer weedyland”). Site identity here is therefore inferred <b>purely from each record's GPS</b>, not from any stated location, and a few coordinates are imprecise or zeroed. Sites are the in-scope subset of the Wildaware picklist; the Eden, Jervis Bay and Shellharbour-Bass Point entries fall outside Terrigal→Wollongong and are dropped. The picklist screenshot ends alphabetically at Terrigal with <b>no Wollongong entry</b>, so a provisional <b>“Wollongong”</b> site holds the handful of genuine Illawarra-coast records rather than mis-snapping them ~45&nbsp;km north to Kurnell. <b>Voodoo</b> and <b>Oak Park</b> are valid picklist sites that currently hold zero sightings. Throughout, counts and site/time concentrations reflect diver effort and survey coverage, not population size.</div></details>
-  </footer>
+  <!-- data-quality footer moved to the top-bar "Data Quality" overlay -->
+
 </div>
 
 <div id="scrim2"></div>
 <div id="expand"><div class="ehead"><h2 id="expandTitle"></h2><button class="eclose" id="expandClose" aria-label="Close">✕</button></div><div id="expandBody"></div></div>
 <div id="insights"><div class="ihead"><h2>Catalogue insights <em>whole dataset · 269 individuals · 4,332 identified sightings</em></h2><button class="iclose" id="insightsClose" aria-label="Close">✕</button></div><div id="insightsBody"></div></div>
+<div id="dataquality"><div class="ihead"><h2>Data quality &amp; cleaning backlog <em>source: SeadragonSearch KML · 4,368 encounter records</em></h2><button class="iclose" id="dqClose" aria-label="Close">✕</button></div>
+<div id="dqBody">
+  <p class="dq-intro">This is an audit of the raw Wildbook&nbsp;/&nbsp;KML export <b>as it arrives</b>, before the explorer touches it — the goal is to show what would need fixing to clean the data at source. The explorer already works around most of these at load time (for example, it ignores the messy location text and assigns every sighting to a dive site by GPS), but the underlying records still carry the issues below.</p>
+  <div class="dq-legend">
+    <span><i class="dq-dot" style="background:var(--coral)"></i>fix at source — affects correctness</span>
+    <span><i class="dq-dot" style="background:var(--amber)"></i>normalise / verify</span>
+    <span><i class="dq-dot" style="background:var(--teal)"></i>handled / informational</span>
+  </div>
+  <div class="dq-grid">
+
+    <section class="dq-card">
+      <header class="dq-ch"><span class="dq-ico">📍</span><h3>Location field (free text)</h3><span class="dq-sev sev-high">normalise</span></header>
+      <ul class="dq-stats">
+        <li><b>94</b> distinct text strings describing only ~17 real dive sites</li>
+        <li><b>187</b> blank · <b>24</b> say only “Australia” · <b>6</b> are raw coordinates pasted in</li>
+        <li><b>15</b> non-place entries — “Scuba diving”, “Walking my dogs at Forresters Beach”, “outer weedyland”, “depth 16m, under sewage treatment plant”</li>
+        <li>One site, many spellings: <b>Old&nbsp;Man's&nbsp;Hat ×9</b>, The&nbsp;Gap ×6, Kurnell ×5, Blue&nbsp;Fish&nbsp;Point ×4, Henry's&nbsp;Head ×4</li>
+        <li>Mixed granularity — sub-features (“Sponge Garden”, “Whale Watch Station”, east/west sides) recorded as whole locations</li>
+      </ul>
+      <p class="dq-act"><b>To clean:</b> replace free text with a controlled picklist; reject coordinates, “Australia” and prose. <i>Explorer already assigns sites by GPS, not this field.</i></p>
+    </section>
+
+    <section class="dq-card">
+      <header class="dq-ch"><span class="dq-ico">🛰️</span><h3>Coordinates / GPS</h3><span class="dq-sev sev-high">fix at source</span></header>
+      <ul class="dq-stats">
+        <li><b>14</b> malformed coordinate strings — depth written with a double minus (<b>“--20.0”</b>), which breaks numeric parsing</li>
+        <li><b>406</b> low-precision longitudes (≤4 decimals ≈ ±10&nbsp;m or coarser)</li>
+        <li>Heavy stacking — single identical points hold <b>64</b>, <b>50</b>, <b>43</b> records, i.e. GPS snapped to a dive-site default rather than the in-water position</li>
+        <li><b>0</b> missing coordinates · <b>0</b> outside the Terrigal→Wollongong box</li>
+      </ul>
+      <p class="dq-act"><b>To clean:</b> repair the 14 double-minus depths; treat clustered coordinates as <i>site-level, not metre-level</i> — fine-scale spatial pattern within a site isn't real.</p>
+    </section>
+
+    <section class="dq-card">
+      <header class="dq-ch"><span class="dq-ico">🐉</span><h3>Individual matching</h3><span class="dq-sev sev-mid">verify</span></header>
+      <ul class="dq-stats">
+        <li><b>4,332</b> of 4,368 records matched to a catalogued individual</li>
+        <li><b>36</b> encounters are unidentified — no individual ID prefix, so the animal couldn't be photo-matched</li>
+        <li><b>269</b> distinct individuals resolved</li>
+      </ul>
+      <p class="dq-act"><b>To clean:</b> review the 36 unmatched encounters — attempt re-identification, or confirm them as genuine one-off sightings.</p>
+    </section>
+
+    <section class="dq-card">
+      <header class="dq-ch"><span class="dq-ico">🗓️</span><h3>Dates &amp; time-of-day</h3><span class="dq-sev sev-mid">verify</span></header>
+      <ul class="dq-stats">
+        <li><b>0</b> records missing a date — range spans <b>1984 → 2025</b></li>
+        <li><b>8</b> pre-2010 records (1984, 1988, 1989×2, 2000×2, 2009×2) — likely retro-entered historical sightings that skew the left edge of any trend</li>
+        <li><b>1,288</b> records have a date but <b>no time-of-day</b> — so time-of-day charts cover only ~70% of the data</li>
+      </ul>
+      <p class="dq-act"><b>To clean:</b> verify the pre-2010 outliers; treat time-of-day as partial coverage, not a complete signal.</p>
+    </section>
+
+    <section class="dq-card">
+      <header class="dq-ch"><span class="dq-ico">📏</span><h3>Depth</h3><span class="dq-sev sev-mid">normalise</span></header>
+      <ul class="dq-stats">
+        <li><b>105</b> records have depth = 0 — a sentinel for “not recorded”, not the surface</li>
+        <li><b>14</b> depths unreadable (the double-minus coordinates above)</li>
+        <li>Recorded depths range <b>−7&nbsp;m to −26.4&nbsp;m</b> — all plausible</li>
+      </ul>
+      <p class="dq-act"><b>To clean:</b> store “not recorded” as null, not 0, so it's excluded from depth statistics. <i>Explorer already treats 0 as not-recorded.</i></p>
+    </section>
+
+    <section class="dq-card">
+      <header class="dq-ch"><span class="dq-ico">⚥</span><h3>Sex</h3><span class="dq-sev sev-low">minor</span></header>
+      <ul class="dq-stats">
+        <li>Male <b>1,686</b> · Female <b>1,411</b> · Unknown <b>1,264</b> (~29%)</li>
+        <li><b>7</b> records have a blank sex field rather than “unknown”</li>
+      </ul>
+      <p class="dq-act"><b>To clean:</b> set the 7 blanks to “unknown”. The 1,264 unknowns are legitimately undetermined and don't need fixing.</p>
+    </section>
+
+    <section class="dq-card">
+      <header class="dq-ch"><span class="dq-ico">🗺️</span><h3>Coverage — read with care</h3><span class="dq-sev sev-low">context</span></header>
+      <ul class="dq-stats">
+        <li><b>~96%</b> of records resolve to Kurnell — a diver-effort concentration, <i>not</i> seadragon abundance</li>
+        <li><b>Voodoo</b> and <b>Oak Park</b> are valid picklist sites with <b>0</b> sightings so far</li>
+        <li>A provisional <b>“Wollongong”</b> site holds the handful of Illawarra-coast records (the picklist had no Wollongong entry)</li>
+      </ul>
+      <p class="dq-act"><b>Not a defect:</b> counts and site/time concentrations reflect survey effort and coverage, not population size — keep this in mind when reading every chart.</p>
+    </section>
+
+  </div>
+</div></div>
 <div id="scrim"></div>
 <div id="ai">
   <div class="ahead"><span class="dot2"></span><h2>Ask the data</h2><button class="close" id="aiClose">✕</button></div>
@@ -866,11 +980,15 @@ let insightsBuilt=false;
 function openInsights(){if(!insightsBuilt){buildInsights();insightsBuilt=true;}
   document.getElementById('scrim2').classList.add('show');document.getElementById('insights').classList.add('show');}
 function closeInsights(){document.getElementById('scrim2').classList.remove('show');document.getElementById('insights').classList.remove('show');}
-function closeOverlays(){closeExpand();closeInsights();}
+function closeOverlays(){closeExpand();closeInsights();closeDQ();}
+function openDQ(){document.getElementById('scrim2').classList.add('show');document.getElementById('dataquality').classList.add('show');}
+function closeDQ(){document.getElementById('scrim2').classList.remove('show');document.getElementById('dataquality').classList.remove('show');}
 document.querySelectorAll('.exp').forEach(b=>b.onclick=()=>openExpand(b.dataset.exp));
 document.getElementById('expandClose').onclick=closeExpand;
 document.getElementById('insightsBtn').onclick=openInsights;
 document.getElementById('insightsClose').onclick=closeInsights;
+document.getElementById('dqBtn').onclick=openDQ;
+document.getElementById('dqClose').onclick=closeDQ;
 document.getElementById('scrim2').onclick=closeOverlays;
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeOverlays();});
 document.getElementById('mapAreaChk').onchange=e=>{F.mapArea=e.target.checked;render();};
