@@ -99,6 +99,11 @@ header .count .sep{color:var(--faint);margin:0 8px;font-family:'Inter'}
 .leaflet-popup-content .prow b{color:var(--ink);font-weight:500}
 .leaflet-popup-content a{color:var(--teal);text-decoration:none;font-size:12px;display:inline-block;margin-top:7px;border-bottom:1px solid var(--line)}
 .popbtn{margin-top:9px;background:var(--teal);color:var(--abyss);border:none;border-radius:6px;padding:6px 10px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;width:100%}
+.leaflet-tooltip.pinlabel{background:var(--panel2);color:var(--ink);border:1px solid var(--line);
+  border-radius:6px;font-family:'Inter';font-size:11px;line-height:1.4;padding:4px 7px;
+  box-shadow:0 1px 6px rgba(0,0,0,.5);white-space:nowrap;font-variant-numeric:tabular-nums;pointer-events:none}
+.leaflet-tooltip.pinlabel b{color:var(--amber);font-weight:600}
+.leaflet-tooltip.pinlabel:before{display:none}
 .leaflet-control-attribution{background:rgba(6,20,29,.7)!important;color:var(--faint)!important}
 .leaflet-control-attribution a{color:var(--muted)!important}
 .dot{border-radius:50%;border:1.5px solid rgba(255,255,255,.55);box-shadow:0 0 6px rgba(0,0,0,.4)}
@@ -288,6 +293,21 @@ header .count .sep{color:var(--faint);margin:0 8px;font-family:'Inter'}
       <div class="note">Shades the map by sighting density — diver effort, not abundance. Replaces the dots while on.</div>
       <label class="opt" style="margin-top:9px"><input type="checkbox" id="mapAreaChk"><span>Select by visible map area</span></label>
       <div class="note">Limits all charts &amp; counts to sightings inside the current map view — pan or zoom to change the selection.</div>
+    </div>
+    <div class="group" id="labelGroup">
+      <div class="lbl"><span>Label near pin</span><button class="btn" id="lblNone" style="margin-left:auto;padding:2px 7px">none</button></div>
+      <div class="seg" id="lblModeSeg" style="margin-bottom:9px">
+        <button data-lm="hover" class="on">On hover</button>
+        <button data-lm="always">Always show</button>
+      </div>
+      <label class="opt"><input type="checkbox" data-lf="date"><span>Date</span></label>
+      <label class="opt"><input type="checkbox" data-lf="sex"><span>Sex</span></label>
+      <label class="opt"><input type="checkbox" data-lf="depth"><span>Depth</span></label>
+      <label class="opt"><input type="checkbox" data-lf="site"><span>Site</span></label>
+      <label class="opt"><input type="checkbox" data-lf="indiv"><span>Individual #</span></label>
+      <label class="opt"><input type="checkbox" data-lf="count"><span>Times seen</span></label>
+      <label class="opt"><input type="checkbox" data-lf="years"><span>Years active</span></label>
+      <div class="note">Shows the ticked fields beside each dot &mdash; no click needed. Date &amp; depth apply to single sightings; times-seen &amp; years to individuals. <b>Always show</b> gets busy with many dots &mdash; it reads best filtered down or in Individuals mode.</div>
     </div>
     <div class="group" id="drawGroup">
       <div class="lbl">Draw selection</div>
@@ -635,7 +655,7 @@ const yrs=ROWS.filter(d=>d[3]).map(d=>d[3]);const YMIN=Math.min(...yrs),YMAX=Mat
 const DMAX=Math.ceil(Math.max(...ROWS.filter(d=>d[2]!=null).map(d=>Math.abs(d[2]))));
 const MAXSIGHT=Math.max(...COUNTS);
 const F={mode:'sightings',sex:new Set([0,1,2]),site:new Set([0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23]),yr:[YMIN,YMAX],dp:[0,DMAX],
-  months:new Set(),minSight:1,hr:[0,23],focus:null,depthView:'profile',switchers:false,mapArea:false,poly:null,heat:false};
+  months:new Set(),minSight:1,hr:[0,23],focus:null,depthView:'profile',switchers:false,mapArea:false,poly:null,heat:false,labels:new Set(),labelMode:'hover'};
 
 /* ---------- Map ---------- */
 const map=L.map('map',{zoomControl:true,preferCanvas:true}).setView([-33.99,151.22],11);
@@ -687,6 +707,15 @@ let viewRows=[];
 function median(a){a=[...a].sort((x,y)=>x-y);const m=a.length>>1;return a.length%2?a[m]:(a[m-1]+a[m])/2;}
 function modalSex(rows){let m=0,f=0;rows.forEach(d=>{if(d[5]===0)m++;else if(d[5]===1)f++;});return (m||f)?(m>=f?0:1):2;}
 
+// Bind a hover/permanent tooltip ("label near pin") built only from the fields the user ticked.
+// parts: array of [fieldKey, htmlValue]; entries whose key isn't selected (or whose value is empty) are dropped.
+function attachLabel(m,parts){
+  if(!F.labels.size)return m;
+  const txt=parts.filter(p=>F.labels.has(p[0])&&p[1]).map(p=>p[1]).join('<br>');
+  if(!txt)return m;
+  m.bindTooltip(txt,{permanent:F.labelMode==='always',direction:'right',className:'pinlabel',offset:[7,0],opacity:1});
+  return m;
+}
 function render(){
   _mb=F.mapArea?map.getBounds():null;
   cluster.clearLayers();lineLayer.clearLayers();viewRows=[];const inds=new Set();
@@ -706,9 +735,11 @@ function render(){
       if(Object.keys(sc).length>=2){drawSwitcher(idx,g,sx);continue;}
       // in-view sightings collapsed to one site under other filters → faint single dot
       const lat=median(g.map(d=>d[0])),lng=median(g.map(d=>d[1])),rr=Math.min(20,7+Math.sqrt(g.length)*2);
-      L.marker([lat,lng],{icon:L.divIcon({className:'',iconSize:[rr*2,rr*2],
+      const fm=L.marker([lat,lng],{icon:L.divIcon({className:'',iconSize:[rr*2,rr*2],
         html:`<div class="dot idot" style="width:${rr*2}px;height:${rr*2}px;background:${sx.col};opacity:.45"><span>${g.length>1?g.length:''}</span></div>`})})
-        .bindPopup(`<div class="pdate">Individual #${idx}</div><div class="prow">Only one site in current filters \u2014 widen filters to see its switches.</div><button class="popbtn" onclick="focusIndiv(${idx})">Track this individual →</button>`).addTo(lineLayer);
+        .bindPopup(`<div class="pdate">Individual #${idx}</div><div class="prow">Only one site in current filters \u2014 widen filters to see its switches.</div><button class="popbtn" onclick="focusIndiv(${idx})">Track this individual →</button>`);
+      attachLabel(fm,[['indiv',`#${idx}`],['count',`<b>${g.length}×</b>`],['sex',sx.name],['site',SITES[g[0][6]]]]);
+      fm.addTo(lineLayer);
     }
   } else if(F.mode==='individuals'&&F.focus==null){
     for(const key in groups){
@@ -737,7 +768,11 @@ function render(){
       const r=Math.min(27,8+Math.sqrt(g.length)*2.4);
       const m=L.marker([lat,lng],{icon:L.divIcon({className:'',iconSize:[r*2,r*2],
         html:`<div class="dot idot" style="width:${r*2}px;height:${r*2}px;background:${sx.col}"><span>${g.length>1?g.length:''}</span></div>`})});
-      m.bindPopup(popup);ms.push(m);
+      m.bindPopup(popup);
+      attachLabel(m,[['indiv',`#${idx}`],['count',`<b>${g.length}×</b>`],['sex',sx.name],
+        ['site',nSites>1?`${mainSite} +${nSites-1}`:mainSite],
+        ['years',fy?`${fy}${ly&&ly!==fy?'\u2013'+ly:''}`:'']]);
+      ms.push(m);
     }
   } else {
     for(const d of viewRows){
@@ -753,7 +788,10 @@ function render(){
       if(d[8]>=0)html+=`<div class="prow">Individual · <b>#${d[8]}</b>, seen <b>${n}×</b></div>
         <button class="popbtn" onclick="focusIndiv(${d[8]})">Track this individual →</button>`;
       html+=`<a href="${url}" target="_blank" rel="noopener">View Wildbook record →</a>`;
-      m.bindPopup(html);ms.push(m);
+      m.bindPopup(html);
+      attachLabel(m,[['date',dt],['sex',sx.name],['depth',dep],['site',SITES[d[6]]],
+        ['indiv',d[8]>=0?`#${d[8]}`:'unmatched'],['count',d[8]>=0?`<b>${n}×</b>`:'']]);
+      ms.push(m);
     }
   }
   cluster.addLayers(ms);
@@ -822,13 +860,14 @@ function drawSwitcher(idx,g,sx){
       html:`<div style="transform:rotate(${ang.toFixed(1)}deg);color:${sx.col};font-size:14px;line-height:16px;text-align:center;text-shadow:0 0 3px #000,0 0 3px #000">\u25B2</div>`})}).addTo(lineLayer);}
   stops.forEach((s,i)=>{const rr=Math.min(20,7+Math.sqrt(s.n)*2);
     const tag=i===0?' first':(i===stops.length-1?' latest':'');
-    L.marker([s.lat,s.lng],{icon:L.divIcon({className:'',iconSize:[rr*2,rr*2],
+    const sm=L.marker([s.lat,s.lng],{icon:L.divIcon({className:'',iconSize:[rr*2,rr*2],
       html:`<div class="dot idot" style="width:${rr*2}px;height:${rr*2}px;background:${sx.col}"><span>${s.n>1?s.n:''}</span></div>`})})
       .bindPopup(`<div class="pdate">#${idx} · ${SITES[s.site]}${tag}</div>
         <div class="prow"><b>${s.n}×</b> seen here${s.fy<9999?` · from <b>${s.fy}</b>`:''}</div>
         <div class="prow">Path: ${seq}</div>
-        <button class="popbtn" onclick="focusIndiv(${idx})">Track this individual →</button>`)
-      .addTo(lineLayer);});
+        <button class="popbtn" onclick="focusIndiv(${idx})">Track this individual →</button>`);
+    attachLabel(sm,[['indiv',`#${idx}`],['site',SITES[s.site]],['count',`<b>${s.n}×</b>`],['sex',sx.name]]);
+    sm.addTo(lineLayer);});
 }
 window.focusIndiv=function(i){F.focus=i;map.closePopup();
   const fb=document.getElementById('focusBanner');fb.style.display='flex';
@@ -963,7 +1002,9 @@ resetAll.onclick=()=>{F.sex=new Set([0,1,2]);F.site=new Set(SITES.map((s,i)=>i))
   document.getElementById('modeNote').textContent='Every dot is one sighting.';
   ySl.reset();dSl.reset();hSl.reset();document.getElementById('msMin').value=1;document.getElementById('msMin').oninput();
   document.getElementById('focusBanner').style.display='none';
-  document.querySelectorAll('.opt input').forEach(c=>c.checked=true);document.getElementById('switchChk').checked=false;document.getElementById('mapAreaChk').checked=false;document.getElementById('heatChk').checked=false;document.getElementById('focusBanner').style.display='none';clearDrawArea();updateFilterCounts();render();};
+  document.querySelectorAll('.opt input').forEach(c=>c.checked=true);document.getElementById('switchChk').checked=false;document.getElementById('mapAreaChk').checked=false;document.getElementById('heatChk').checked=false;document.getElementById('focusBanner').style.display='none';
+  F.labels.clear();F.labelMode='hover';document.querySelectorAll('#labelGroup [data-lf]').forEach(c=>c.checked=false);document.querySelectorAll('#lblModeSeg button').forEach(x=>x.classList.toggle('on',x.dataset.lm==='hover'));
+  clearDrawArea();updateFilterCounts();render();};
 document.getElementById('resetHdr').onclick=()=>document.getElementById('resetAll').click();
 window.addEventListener('resize',()=>{clearTimeout(window.__rz);window.__rz=setTimeout(()=>drawSitesBox(_depth.siteBox),200);});
 function refreshExpand(){const body=document.getElementById('expandBody');if(!body)return;
@@ -993,6 +1034,13 @@ document.getElementById('scrim2').onclick=closeOverlays;
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeOverlays();});
 document.getElementById('mapAreaChk').onchange=e=>{F.mapArea=e.target.checked;render();};
 document.getElementById('heatChk').onchange=e=>{F.heat=e.target.checked;render();};
+document.querySelectorAll('#labelGroup [data-lf]').forEach(c=>c.onchange=e=>{
+  const f=e.target.dataset.lf;e.target.checked?F.labels.add(f):F.labels.delete(f);render();});
+document.querySelectorAll('#lblModeSeg button').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('#lblModeSeg button').forEach(x=>x.classList.toggle('on',x===b));
+  F.labelMode=b.dataset.lm;render();});
+document.getElementById('lblNone').onclick=()=>{F.labels.clear();
+  document.querySelectorAll('#labelGroup [data-lf]').forEach(c=>c.checked=false);render();};
 map.on('moveend',()=>{if(F.mapArea)render();});
 const drawLayer=L.layerGroup().addTo(map);
 let drawMode=false,drawing=false,drawPts=[],drawLine=null;
