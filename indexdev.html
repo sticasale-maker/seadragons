@@ -24,18 +24,26 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--abyss);color:var(
 #app{display:grid;grid-template-columns:300px 1fr 344px;grid-template-rows:auto minmax(0,1fr) 228px auto;
   height:100vh;max-height:100vh;overflow:hidden;
   grid-template-areas:"head head head" "rail map box" "rail charts charts" "foot foot foot"}
-#siteBox{grid-area:box;background:var(--deep);border-left:1px solid var(--line);display:flex;flex-direction:column;min-height:0;overflow:hidden;padding:11px 14px 10px}
+#siteBox{grid-area:box;position:relative;background:var(--deep);border-left:1px solid var(--line);display:flex;flex-direction:column;min-height:0;overflow:hidden;padding:11px 14px 10px}
+#listResize{position:absolute;left:0;top:0;bottom:0;width:7px;cursor:col-resize;z-index:6;touch-action:none}
+#listResize::before{content:"";position:absolute;left:2px;top:0;bottom:0;width:1px;background:transparent;transition:background .12s}
+#listResize:hover::before,#listResize.rz-active::before{background:var(--teal)}
+body.rz-drag{cursor:col-resize;user-select:none}
 #siteBox .ct{font-size:10.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--faint);margin-bottom:6px;display:flex;justify-content:space-between;align-items:center}
 #siteBoxBody{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;padding-right:4px}
 #siteBoxBody::-webkit-scrollbar{width:5px}#siteBoxBody::-webkit-scrollbar-thumb{background:var(--line);border-radius:3px}
 #siteBoxBody .dnote{margin-top:8px}
 #siteBox .lcnt{font-size:9.5px;letter-spacing:.06em;color:var(--faint);text-transform:none}
-#siteBox .lhead{display:grid;grid-template-columns:82px 1fr 62px;gap:8px;font-size:9px;letter-spacing:.07em;text-transform:uppercase;color:var(--faint);padding:0 4px 5px;margin-bottom:1px;border-bottom:1px solid var(--line)}
+#siteBox .lhead{display:grid;grid-template-columns:82px 1fr 58px 22px;gap:8px;font-size:9px;letter-spacing:.07em;text-transform:uppercase;color:var(--faint);padding:0 4px 5px;margin-bottom:1px;border-bottom:1px solid var(--line)}
 #siteBox .lhead span{cursor:pointer;user-select:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-#siteBox .lhead span:last-child{text-align:right}
-#siteBox .lhead span:hover{color:var(--teal)}
+#siteBox .lhead span[data-sort="ym"]{text-align:right}
+#siteBox .lhead .lk{cursor:default;text-align:center}
+#siteBox .lhead span[data-sort]:hover{color:var(--teal)}
 #siteBox .lhead span.sorted{color:var(--muted)}
-#siteBoxBody .lr{display:grid;grid-template-columns:82px 1fr 62px;gap:8px;padding:4px;font-size:11.5px;border-bottom:1px solid rgba(255,255,255,.03);align-items:center}
+#siteBoxBody .lr{display:grid;grid-template-columns:82px 1fr 58px 22px;gap:8px;padding:4px;font-size:11.5px;border-bottom:1px solid rgba(255,255,255,.03);align-items:center}
+#siteBoxBody .lr .lk{text-align:center}
+#siteBoxBody .lr .lk a{color:var(--faint);text-decoration:none;font-size:12px;line-height:1;display:inline-block}
+#siteBoxBody .lr .lk a:hover{color:var(--teal)}
 #siteBoxBody .lr .li{color:var(--amber);font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #siteBoxBody .lr .ls{color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #siteBoxBody .lr .lym{color:var(--faint);text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
@@ -397,8 +405,8 @@ header .count .sep{color:var(--faint);margin:0 8px;font-family:'Inter'}
     <div id="focusBanner"><span>Tracking <b id="fbName"></b></span><span class="x" id="fbClear">clear ✕</span></div>
   </div>
 
-  <section id="siteBox"><div class="ct"><span id="listTitle">Sightings</span><span class="lcnt" id="listCount"></span></div>
-    <div class="lhead" id="listHead"><span data-sort="id">Individual</span><span data-sort="sub">Submitter</span><span data-sort="ym">Year&#8209;month</span></div>
+  <section id="siteBox"><div id="listResize" title="Drag to resize"></div><div class="ct"><span id="listTitle">Sightings</span><span class="lcnt" id="listCount"></span></div>
+    <div class="lhead" id="listHead"><span data-sort="id">Individual</span><span data-sort="sub">Submitter</span><span data-sort="ym">Year&#8209;month</span><span class="lk" title="Open on Wildbook">&#8599;</span></div>
     <div id="siteBoxBody"></div></section>
 
   <div id="charts">
@@ -7557,6 +7565,11 @@ function drawSitesBox(arr,body){body=body||document.getElementById('siteBoxBody'
 /* ---------- Records list (sightings / specimens, filter-aware) ---------- */
 let _lastGroups={},_listSort={key:'ym',dir:-1};
 const LIST_CAP=500;
+/* Wildbook links. Encounter path is confirmed (used elsewhere in this file);
+   individual path follows the standard Wildbook /individuals.jsp?number=<id> convention. */
+const WB_BASE='https://wildbook.seadragonsearch.org';
+const WB_ENC=u=>`${WB_BASE}/encounters/encounter.jsp?number=${u}`;
+const WB_IND=id=>`${WB_BASE}/individuals.jsp?number=${encodeURIComponent(id)}`;
 function _lesc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
 function _listCmp(a,b){const k=_listSort.key,d=_listSort.dir;
   if(k==='ym')return ((a.y*100+a.m)-(b.y*100+b.m))*d;
@@ -7572,10 +7585,10 @@ function drawList(){
     for(const key in _lastGroups){const idx=+key,g=_lastGroups[key];
       const recent=g.reduce((a,d)=>(!a||((d[3]||0)*100+(d[4]||0))>=((a[3]||0)*100+(a[4]||0)))?d:a,null);
       const ex=EXTRA_BY_UUID[recent[7]];
-      rows.push({idn:IND_NAMES[idx],sub:(ex&&ex[0])||'',y:recent[3]||0,m:recent[4]||0,idx});}
+      rows.push({idn:IND_NAMES[idx],sub:(ex&&ex[0])||'',y:recent[3]||0,m:recent[4]||0,idx,url:WB_IND(IND_NAMES[idx])});}
   }else{
     for(const d of viewRows){const ex=EXTRA_BY_UUID[d[7]];
-      rows.push({idn:d[8]>=0?IND_NAMES[d[8]]:'',sub:(ex&&ex[0])||'',y:d[3]||0,m:d[4]||0,idx:d[8]});}
+      rows.push({idn:d[8]>=0?IND_NAMES[d[8]]:'',sub:(ex&&ex[0])||'',y:d[3]||0,m:d[4]||0,idx:d[8],url:d[7]?WB_ENC(d[7]):''});}
   }
   const total=rows.length;
   document.getElementById('listCount').textContent=total.toLocaleString()+(ind?' specimens':' sightings');
@@ -7585,19 +7598,40 @@ function drawList(){
   for(const r of shown){
     const ym=r.y?(r.y+(r.m?'-'+String(r.m).padStart(2,'0'):'')):'\u2014';
     const foc=r.idx>=0;
-    html+=`<div class="lr${foc?' foc':''}"${foc?` data-idx="${r.idx}"`:''}><span class="li">${r.idn||'\u2014'}</span><span class="ls" title="${_lesc(r.sub)}">${r.sub?_lesc(r.sub):'\u2014'}</span><span class="lym">${ym}</span></div>`;
+    const lk=r.url?`<a href="${r.url}" target="_blank" rel="noopener" title="${ind?'Individual on Wildbook':'Encounter on Wildbook'}">\u2197</a>`:'';
+    html+=`<div class="lr${foc?' foc':''}"${foc?` data-idx="${r.idx}"`:''}><span class="li">${r.idn||'\u2014'}</span><span class="ls" title="${_lesc(r.sub)}">${r.sub?_lesc(r.sub):'\u2014'}</span><span class="lym">${ym}</span><span class="lk">${lk}</span></div>`;
   }
   body.innerHTML=html||'<div class="dnote">No records in the current view.</div>';
   if(total>shown.length)body.insertAdjacentHTML('beforeend',`<div class="dnote">Showing first ${shown.length.toLocaleString()} of ${total.toLocaleString()} \u2014 refine filters to narrow the list.</div>`);
   document.querySelectorAll('#listHead span').forEach(s=>s.classList.toggle('sorted',s.dataset.sort===_listSort.key));
 }
 (function(){const h=document.getElementById('listHead');
-  if(h)h.querySelectorAll('span').forEach(s=>{s.onclick=()=>{const k=s.dataset.sort;
+  if(h)h.querySelectorAll('span[data-sort]').forEach(s=>{s.onclick=()=>{const k=s.dataset.sort;
     if(_listSort.key===k)_listSort.dir*=-1;else _listSort={key:k,dir:k==='ym'?-1:1};
     drawList();};});
   const b=document.getElementById('siteBoxBody');
-  if(b)b.addEventListener('click',e=>{const r=e.target.closest('.lr.foc');
+  if(b)b.addEventListener('click',e=>{if(e.target.closest('a'))return;const r=e.target.closest('.lr.foc');
     if(r&&r.dataset.idx!=null)focusIndiv(+r.dataset.idx);});})();
+
+/* ---------- Drag-resize the list panel ---------- */
+let _listW=null;               // remembered custom width (px) for the box column, or null
+const LIST_W_MIN=240;
+function _listWMax(){return Math.min(760,Math.round(window.innerWidth*0.6));}
+function applyListW(){const app=document.getElementById('app');if(!app)return;
+  if(window.innerWidth<=820||_listW==null){app.style.gridTemplateColumns='';}
+  else{app.style.gridTemplateColumns='300px 1fr '+_listW+'px';}}
+(function(){const handle=document.getElementById('listResize'),box=document.getElementById('siteBox');
+  if(!handle||!box)return;let rightEdge=0;
+  const move=e=>{const x=e.touches?e.touches[0].clientX:e.clientX;
+    let w=rightEdge-x;w=Math.max(LIST_W_MIN,Math.min(_listWMax(),w));_listW=Math.round(w);applyListW();};
+  const up=()=>{handle.classList.remove('rz-active');document.body.classList.remove('rz-drag');
+    window.removeEventListener('pointermove',move);window.removeEventListener('pointerup',up);};
+  const down=e=>{if(window.innerWidth<=820)return;e.preventDefault();
+    rightEdge=box.getBoundingClientRect().right;
+    handle.classList.add('rz-active');document.body.classList.add('rz-drag');
+    window.addEventListener('pointermove',move);window.addEventListener('pointerup',up);};
+  handle.addEventListener('pointerdown',down);
+  handle.addEventListener('dblclick',()=>{_listW=null;applyListW();});})();
 
 /* ---------- Filter UI ---------- */
 function buildChecks(gid,items,set){const g=document.getElementById(gid);
@@ -7672,7 +7706,7 @@ resetAll.onclick=()=>{F.sex=new Set([0,1,2]);F.site=new Set(SITES.map((s,i)=>i))
   document.getElementById('focusBanner').style.display='none';
   document.querySelectorAll('.opt input').forEach(c=>c.checked=true);document.getElementById('switchChk').checked=false;document.getElementById('mapAreaChk').checked=false;document.getElementById('heatChk').checked=false;document.getElementById('focusBanner').style.display='none';clearDrawArea();updateFilterCounts();render();};
 document.getElementById('resetHdr').onclick=()=>document.getElementById('resetAll').click();
-window.addEventListener('resize',()=>{clearTimeout(window.__rz);window.__rz=setTimeout(()=>{if(F.depthView==='spread')drawDepthPanel();if(expandWhich)refreshExpand();},200);});
+window.addEventListener('resize',()=>{applyListW();clearTimeout(window.__rz);window.__rz=setTimeout(()=>{if(F.depthView==='spread')drawDepthPanel();if(expandWhich)refreshExpand();},200);});
 function refreshExpand(){const body=document.getElementById('expandBody');if(!body)return;
   if(expandWhich==='sites'||(expandWhich==='depth'&&F.depthView==='spread')){drawSitesBox(_depth.siteBox,body);return;}
   body.innerHTML='';const srcId=expandWhich==='year'?'yearBars':expandWhich==='month'?'monthBars':'depthBars';
