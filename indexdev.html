@@ -29,6 +29,19 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--abyss);color:var(
 #siteBoxBody{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;padding-right:4px}
 #siteBoxBody::-webkit-scrollbar{width:5px}#siteBoxBody::-webkit-scrollbar-thumb{background:var(--line);border-radius:3px}
 #siteBoxBody .dnote{margin-top:8px}
+#siteBox .lcnt{font-size:9.5px;letter-spacing:.06em;color:var(--faint);text-transform:none}
+#siteBox .lhead{display:grid;grid-template-columns:82px 1fr 62px;gap:8px;font-size:9px;letter-spacing:.07em;text-transform:uppercase;color:var(--faint);padding:0 4px 5px;margin-bottom:1px;border-bottom:1px solid var(--line)}
+#siteBox .lhead span{cursor:pointer;user-select:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#siteBox .lhead span:last-child{text-align:right}
+#siteBox .lhead span:hover{color:var(--teal)}
+#siteBox .lhead span.sorted{color:var(--muted)}
+#siteBoxBody .lr{display:grid;grid-template-columns:82px 1fr 62px;gap:8px;padding:4px;font-size:11.5px;border-bottom:1px solid rgba(255,255,255,.03);align-items:center}
+#siteBoxBody .lr .li{color:var(--amber);font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#siteBoxBody .lr .ls{color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#siteBoxBody .lr .lym{color:var(--faint);text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+#siteBoxBody .lr.foc{cursor:pointer}
+#siteBoxBody .lr.foc:hover{background:rgba(46,196,182,.09)}
+#siteBoxBody .lr.foc:hover .li{color:var(--teal)}
 .exp{background:none;border:none;color:var(--faint);cursor:pointer;font-size:9.5px;letter-spacing:.03em;font-family:inherit;padding:0 0 0 6px;flex:none;white-space:nowrap}
 .exp:hover{color:var(--teal)}
 #scrim2{position:fixed;inset:0;background:rgba(3,12,18,.74);opacity:0;pointer-events:none;transition:opacity .2s;z-index:1400}
@@ -384,12 +397,14 @@ header .count .sep{color:var(--faint);margin:0 8px;font-family:'Inter'}
     <div id="focusBanner"><span>Tracking <b id="fbName"></b></span><span class="x" id="fbClear">clear ✕</span></div>
   </div>
 
-  <section id="siteBox"><div class="ct"><span>Depth by site &middot; spread</span><button class="exp" data-exp="sites" aria-label="Expand chart">Expand ↗</button></div><div id="siteBoxBody"></div></section>
+  <section id="siteBox"><div class="ct"><span id="listTitle">Sightings</span><span class="lcnt" id="listCount"></span></div>
+    <div class="lhead" id="listHead"><span data-sort="id">Individual</span><span data-sort="sub">Submitter</span><span data-sort="ym">Year&#8209;month</span></div>
+    <div id="siteBoxBody"></div></section>
 
   <div id="charts">
     <div class="chart"><div class="ct"><span>Sightings by year</span><span class="hint">click to filter</span><button class="exp" data-exp="year" aria-label="Expand chart">Expand ↗</button></div><div class="bars" id="yearBars"></div></div>
     <div class="chart"><div class="ct"><span>By month (seasonality)</span><span class="hint">click to filter</span><button class="exp" data-exp="month" aria-label="Expand chart">Expand ↗</button></div><div class="bars" id="monthBars"></div></div>
-    <div class="chart"><div class="ct"><span id="depthTitle">Depth profile</span><span class="dseg" id="depthSeg"><button data-v="profile" class="on">Profile</button><button data-v="spread">Spread</button><button data-v="trend">Trend</button></span><button class="exp" data-exp="depth" aria-label="Expand chart">Expand ↗</button></div><div class="depthbars" id="depthBars"></div></div>
+    <div class="chart"><div class="ct"><span id="depthTitle">Depth profile</span><span class="dseg" id="depthSeg"><button data-v="profile" class="on">Profile</button><button data-v="spread">By site</button><button data-v="trend">Trend</button></span><button class="exp" data-exp="depth" aria-label="Expand chart">Expand ↗</button></div><div class="depthbars" id="depthBars"></div></div>
   </div>
   <!-- data-quality footer moved to the top-bar "Data Quality" overlay -->
 
@@ -7413,7 +7428,7 @@ function render(){
     siteBox.push({site:SITES[+si],n:a.length,mn:a[0],mx:a[a.length-1],med:quantile(a,.5),q1:quantile(a,.25),q3:quantile(a,.75)});}
   siteBox.sort((a,b)=>a.med-b.med);
   _depth={db,dbInd,spread,yearStats,siteBox};
-  drawYear(yc);drawMonth(mc);drawDepthPanel();drawSitesBox(_depth.siteBox);updateScope(inds.size);if(expandWhich)refreshExpand();
+  drawYear(yc);drawMonth(mc);drawDepthPanel();_lastGroups=groups;drawList();updateScope(inds.size);if(expandWhich)refreshExpand();
   // Heat points: one per individual (median location) in individuals view, else one per sighting
   if(F.mode==='individuals'&&F.focus==null){
     heatPts=[];
@@ -7430,7 +7445,7 @@ function quantile(sortedAsc,p){if(!sortedAsc.length)return 0;const idx=(sortedAs
   return lo===hi?sortedAsc[lo]:sortedAsc[lo]+(sortedAsc[hi]-sortedAsc[lo])*(idx-lo);}
 function drawDepthPanel(){
   const t=document.getElementById('depthTitle'),el=document.getElementById('depthBars');
-  if(F.depthView==='spread'){el.classList.remove('fill');t.textContent='Depth spread / specimen';drawSpread(_depth.spread);}
+  if(F.depthView==='spread'){el.classList.remove('fill');t.textContent='Depth by site';drawSitesBox(_depth.siteBox,el);}
   else if(F.depthView==='trend'){el.classList.remove('fill');t.textContent='Median depth / year';drawTrend(_depth.yearStats);}
   else{el.classList.add('fill');const indDepth=(F.mode==='individuals'&&F.focus==null);
     t.textContent=indDepth?'Depth profile · median per specimen':'Depth profile';
@@ -7539,6 +7554,51 @@ function drawSitesBox(arr,body){body=body||document.getElementById('siteBoxBody'
   const note=document.createElement('div');note.className='dnote';
   note.innerHTML='Sorted shallow \u2192 deep. Box = <b>IQR</b> (interquartile range \u2014 the middle 50% of dives, 25th\u201375th percentile); centre line = median; whiskers = full min\u2013max range. Grey = fewer than 5 depth records (spread not reliable). Depths logged as 0 m (not recorded) are excluded.';
   body.appendChild(note);}
+/* ---------- Records list (sightings / specimens, filter-aware) ---------- */
+let _lastGroups={},_listSort={key:'ym',dir:-1};
+const LIST_CAP=500;
+function _lesc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+function _listCmp(a,b){const k=_listSort.key,d=_listSort.dir;
+  if(k==='ym')return ((a.y*100+a.m)-(b.y*100+b.m))*d;
+  const av=k==='id'?a.idn:a.sub, bv=k==='id'?b.idn:b.sub;
+  const ae=!av, be=!bv; if(ae!==be)return ae?1:-1;   // blanks always last
+  return av.localeCompare(bv)*d;}
+function drawList(){
+  const body=document.getElementById('siteBoxBody');if(!body)return;
+  const ind=(F.mode==='individuals'&&F.focus==null);
+  document.getElementById('listTitle').textContent=ind?'Specimens':'Sightings';
+  const rows=[];
+  if(ind){
+    for(const key in _lastGroups){const idx=+key,g=_lastGroups[key];
+      const recent=g.reduce((a,d)=>(!a||((d[3]||0)*100+(d[4]||0))>=((a[3]||0)*100+(a[4]||0)))?d:a,null);
+      const ex=EXTRA_BY_UUID[recent[7]];
+      rows.push({idn:IND_NAMES[idx],sub:(ex&&ex[0])||'',y:recent[3]||0,m:recent[4]||0,idx});}
+  }else{
+    for(const d of viewRows){const ex=EXTRA_BY_UUID[d[7]];
+      rows.push({idn:d[8]>=0?IND_NAMES[d[8]]:'',sub:(ex&&ex[0])||'',y:d[3]||0,m:d[4]||0,idx:d[8]});}
+  }
+  const total=rows.length;
+  document.getElementById('listCount').textContent=total.toLocaleString()+(ind?' specimens':' sightings');
+  rows.sort(_listCmp);
+  const shown=rows.slice(0,LIST_CAP);
+  let html='';
+  for(const r of shown){
+    const ym=r.y?(r.y+(r.m?'-'+String(r.m).padStart(2,'0'):'')):'\u2014';
+    const foc=r.idx>=0;
+    html+=`<div class="lr${foc?' foc':''}"${foc?` data-idx="${r.idx}"`:''}><span class="li">${r.idn||'\u2014'}</span><span class="ls" title="${_lesc(r.sub)}">${r.sub?_lesc(r.sub):'\u2014'}</span><span class="lym">${ym}</span></div>`;
+  }
+  body.innerHTML=html||'<div class="dnote">No records in the current view.</div>';
+  if(total>shown.length)body.insertAdjacentHTML('beforeend',`<div class="dnote">Showing first ${shown.length.toLocaleString()} of ${total.toLocaleString()} \u2014 refine filters to narrow the list.</div>`);
+  document.querySelectorAll('#listHead span').forEach(s=>s.classList.toggle('sorted',s.dataset.sort===_listSort.key));
+}
+(function(){const h=document.getElementById('listHead');
+  if(h)h.querySelectorAll('span').forEach(s=>{s.onclick=()=>{const k=s.dataset.sort;
+    if(_listSort.key===k)_listSort.dir*=-1;else _listSort={key:k,dir:k==='ym'?-1:1};
+    drawList();};});
+  const b=document.getElementById('siteBoxBody');
+  if(b)b.addEventListener('click',e=>{const r=e.target.closest('.lr.foc');
+    if(r&&r.dataset.idx!=null)focusIndiv(+r.dataset.idx);});})();
+
 /* ---------- Filter UI ---------- */
 function buildChecks(gid,items,set){const g=document.getElementById(gid);
   items.forEach(it=>{const row=document.createElement('label');row.className='opt';
@@ -7612,9 +7672,9 @@ resetAll.onclick=()=>{F.sex=new Set([0,1,2]);F.site=new Set(SITES.map((s,i)=>i))
   document.getElementById('focusBanner').style.display='none';
   document.querySelectorAll('.opt input').forEach(c=>c.checked=true);document.getElementById('switchChk').checked=false;document.getElementById('mapAreaChk').checked=false;document.getElementById('heatChk').checked=false;document.getElementById('focusBanner').style.display='none';clearDrawArea();updateFilterCounts();render();};
 document.getElementById('resetHdr').onclick=()=>document.getElementById('resetAll').click();
-window.addEventListener('resize',()=>{clearTimeout(window.__rz);window.__rz=setTimeout(()=>drawSitesBox(_depth.siteBox),200);});
+window.addEventListener('resize',()=>{clearTimeout(window.__rz);window.__rz=setTimeout(()=>{if(F.depthView==='spread')drawDepthPanel();if(expandWhich)refreshExpand();},200);});
 function refreshExpand(){const body=document.getElementById('expandBody');if(!body)return;
-  if(expandWhich==='sites'){drawSitesBox(_depth.siteBox,body);return;}
+  if(expandWhich==='sites'||(expandWhich==='depth'&&F.depthView==='spread')){drawSitesBox(_depth.siteBox,body);return;}
   body.innerHTML='';const srcId=expandWhich==='year'?'yearBars':expandWhich==='month'?'monthBars':'depthBars';
   const src=document.getElementById(srcId);if(!src)return;const c=src.cloneNode(true);c.id='';c.style.flex='1';body.appendChild(c);}
 function openExpand(w){expandWhich=w;
