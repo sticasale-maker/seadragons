@@ -347,7 +347,7 @@ header .count .sep{color:var(--faint);margin:0 8px;font-family:'Inter'}
       <div class="note" id="modeNote">Every dot is one sighting.</div>
       <div class="lblpick-cap">Label each point</div>
       <div class="lblpick" id="labelPick">
-        <label class="lopt"><input type="checkbox" value="ind"><span>Individual #</span></label>
+        <label class="lopt"><input type="checkbox" value="ind"><span>Individual ID</span></label>
         <label class="lopt"><input type="checkbox" value="count"><span>Sightings</span></label>
         <label class="lopt"><input type="checkbox" value="depth"><span>Depth (m)</span></label>
         <label class="lopt"><input type="checkbox" value="year"><span>Year</span></label>
@@ -7330,7 +7330,7 @@ function sightField(d,k){
 }
 function indField(idx,g,k){
   switch(k){
-    case 'ind':   return '#'+idx;
+    case 'ind':   return IND_NAMES[idx]||('#'+idx);
     case 'count': return COUNTS[idx]+'\u00d7';
     case 'sex':   return ['M','F','?'][modalSex(g)];
     case 'site':  {const sc={};g.forEach(d=>sc[d[6]]=(sc[d[6]]||0)+1);
