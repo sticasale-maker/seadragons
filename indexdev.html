@@ -8072,10 +8072,6 @@ function chartSex(){                // D
   const c=[0,0,0];for(const d of ROWS){if(d[5]===0)c[0]++;else if(d[5]===1)c[1]++;else c[2]++;}
   return _barChart(['male','female','unknown'],c,{xlab:'recorded sex',colorFn:i=>['#4fd1c5','#ec7551','#3d5a66'][i]});
 }
-function chartDepth(){              // E: KML altitude field, |m| binned; nulls excluded
-  const c=new Array(8).fill(0);for(const d of ROWS){if(d[2]==null)continue;c[Math.min(7,Math.floor(Math.abs(d[2])/5))]++;}
-  return _barChart(['0\u20135','5\u201310','10\u201315','15\u201320','20\u201325','25\u201330','30\u201335','35+'],c,{xlab:'depth (m) \u00b7 149 no-depth records excluded'});
-}
 function chartMatch(){              // F: VOC_MATCH; visual = inspection(3)+matcher(4)
   const c=[0,0,0,0];for(let i=0;i<ROWS.length;i++){const e=EXTRA2[i];if(!e)continue;const m=e[7];
     if(m===0)c[0]++;else if(m===1)c[1]++;else if(m===2)c[2]++;else if(m===3||m===4)c[3]++;}
@@ -8109,7 +8105,6 @@ function buildInsights(){
     ['Life-stage composition','Every sighting by maturity/breeding class (\u221a-scaled so small classes stay visible). Brooding males \u2014 carrying eggs on the tail \u2014 are the one unambiguous breeding signal in the catalogue; the seasonality chart shows when they appear.',chartLifeStage(),'bar'],
     ['Seasonality \u00d7 brooding phenology','Sightings per calendar month (bars) are fairly flat \u2014 mostly dive effort, not biology. But brooding males (amber line, its own right-hand scale) surge in the austral spring\u2013summer (Sep\u2013Jan) and all but vanish Mar\u2013May: a real breeding-season signal pulled clear of the effort baseline.',chartSeason(),'wide'],
     ['Sex composition','Recorded sex across all sightings. Males slightly outnumber females, ~24% undetermined. Sex is an observer call from photos, so \u201cunknown\u201d tracks image quality, not a true third class.',chartSex(),'bar'],
-    ['Depth distribution','Recorded dive depth (KML altitude field); 149 no-depth records excluded. A tight mode at 10\u201315 m mirrors where divers work the reef \u2014 read as survey depth, not the animals\u2019 full range.',chartDepth(),'bar'],
     ['Identification provenance','How each sighting was matched to an individual (\u221a-scaled). Pattern-matching dominates; \u201cunmatched\u201d are first encounters and pair with the 43 unidentified records flagged in Data Quality.',chartMatch(),'bar'],
   ];
   body.innerHTML=cards.map(([t,sub,svg,kind])=>{
