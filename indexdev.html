@@ -120,6 +120,13 @@ header .count .sep{color:var(--faint);margin:0 8px;font-family:'Inter'}
 .lopt input{accent-color:var(--teal);width:15px;height:15px;flex:0 0 auto}
 .ptlabel{position:absolute;top:50%;transform:translateY(-50%);white-space:nowrap;font:600 10px 'Inter',system-ui,sans-serif;color:#eaf4f6;letter-spacing:.01em;text-shadow:0 0 3px #000,0 0 3px #000,0 1px 2px #000;pointer-events:none}
 #map{grid-area:map;background:#08303f;min-height:0;overflow:hidden;position:relative}
+/* When SEED bathymetry is OFF, the CARTO dark_all base renders the sea near-black with
+   poor land/sea contrast. Lift the base tile pane so the sea reads lighter. Values tuned:
+   contrast(<1) pulls the darkest area (open water) up toward mid-grey more than the already
+   lighter land, brightness lifts overall, saturate re-blues it. Only the base tile pane is
+   affected (SEED layers are imageOverlays on their own panes; markers/heat use other panes). */
+#map .leaflet-tile-pane{transition:filter .25s ease}
+#map.sea-lift .leaflet-tile-pane{filter:brightness(1.4) contrast(0.75) saturate(1.15)}
 .leaflet-popup-content-wrapper{background:var(--panel2);color:var(--ink);border-radius:10px;border:1px solid var(--line)}
 .leaflet-popup-tip{background:var(--panel2)}
 .leaflet-popup-content{margin:13px 15px;font-size:13px;line-height:1.55}
@@ -464,7 +471,7 @@ header .count .sep{color:var(--faint);margin:0 8px;font-family:'Inter'}
         <li><b>43</b> encounters are unidentified — no individual ID prefix, so the animal couldn't be photo-matched</li>
         <li><b>454</b> distinct individuals resolved</li>
       </ul>
-      <p class="dq-act"><b>To clean:</b> review the 36 unmatched encounters — attempt re-identification, or confirm them as genuine one-off sightings.</p>
+      <p class="dq-act"><b>To clean:</b> review the 43 unmatched encounters — attempt re-identification, or confirm them as genuine one-off sightings.</p>
     </section>
 
     <section class="dq-card">
@@ -472,7 +479,7 @@ header .count .sep{color:var(--faint);margin:0 8px;font-family:'Inter'}
       <ul class="dq-stats">
         <li><b>0</b> records missing a date — range spans <b>1988 → 2026</b></li>
         <li><b>7</b> pre-2010 records (1988, 1989, 2000×2, 2008, 2009×2) — likely retro-entered historical sightings that skew the left edge of any trend</li>
-        <li><b>1,365</b> records have a date but <b>no time-of-day</b> — so time-of-day charts cover ~78% of the data</li>
+        <li><b>1,365</b> records have <b>no time-of-day</b> — so time-of-day charts cover ~78% of the data</li>
       </ul>
       <p class="dq-act"><b>To clean:</b> verify the pre-2010 outliers; treat time-of-day as partial coverage, not a complete signal.</p>
     </section>
@@ -490,7 +497,7 @@ header .count .sep{color:var(--faint);margin:0 8px;font-family:'Inter'}
     <section class="dq-card">
       <header class="dq-ch"><span class="dq-ico">⚥</span><h3>Sex</h3><span class="dq-sev sev-low">minor</span></header>
       <ul class="dq-stats">
-        <li>Male <b>1,686</b> · Female <b>1,411</b> · Unknown <b>1,264</b> (~29%)</li>
+        <li>Male <b>2,547</b> · Female <b>2,276</b> · Unknown <b>1,497</b> (~24%)</li>
         <li><b>7</b> records have a blank sex field rather than “unknown”</li>
       </ul>
       <p class="dq-act"><b>To clean:</b> set any blanks to “unknown”. The 1,497 unknowns are legitimately undetermined and don't need fixing.</p>
@@ -500,7 +507,7 @@ header .count .sep{color:var(--faint);margin:0 8px;font-family:'Inter'}
       <header class="dq-ch"><span class="dq-ico">🗺️</span><h3>Coverage — read with care</h3><span class="dq-sev sev-low">context</span></header>
       <ul class="dq-stats">
         <li><b>~96%</b> of records resolve to Kurnell — a diver-effort concentration, <i>not</i> seadragon abundance</li>
-        <li><b>Voodoo</b> and <b>Oak Park</b> are valid picklist sites with <b>0</b> sightings so far</li>
+        <li><b>Voodoo</b> is a valid picklist site with <b>0</b> sightings so far</li>
         <li>A provisional <b>“Wollongong”</b> site holds the handful of Illawarra-coast records (the picklist had no Wollongong entry)</li>
       </ul>
       <p class="dq-act"><b>Not a defect:</b> counts and site/time concentrations reflect survey effort and coverage, not population size — keep this in mind when reading every chart.</p>
@@ -7203,6 +7210,7 @@ bathyRefresh();
     const cb=d.querySelector('input[type=checkbox]'),ms=d.querySelector('#bMaster');
     cb.addEventListener('change',()=>{
       bathyOn=cb.checked;
+      map.getContainer().classList.toggle('sea-lift',!bathyOn); // lighter sea when SEED is off
       if(bathyOn){d.classList.remove('off');bathyRefresh();}
       else{d.classList.add('off');SEED.forEach(s=>{if(s.img){map.removeLayer(s.img);s.img=null;}});}
     });
@@ -7224,6 +7232,7 @@ bathyRefresh();
     return d;
   }});
   map.addControl(new Ctl());
+  map.getContainer().classList.toggle('sea-lift',!bathyOn); // reflect initial SEED state
 })();
 
 /* ---- live coordinate readout (mouse move + click-to-copy) ---- */
@@ -8040,6 +8049,54 @@ function chartTransitions(){
   s+=`</svg>`;
   return s;
 }
+/* ---- field-driven charts added v12: life-stage, seasonality, sex, depth, id-provenance ---- */
+function _barChart(labels,vals,opt){
+  opt=opt||{};
+  const W=460,H=210,pad=34,n=labels.length,bw=(W-pad-8)/n,mx=Math.max(1,...vals);
+  const sc=opt.sqrt?(v=>Math.sqrt(v/mx)):(v=>v/mx);
+  let s=`<svg viewBox="0 0 ${W} ${H+24}">`;
+  if(opt.sqrt){s+=`<line x1="${pad}" y1="${pad}" x2="${pad}" y2="${pad+(H-pad)}" stroke="#1d4a5e"/>`;}
+  else{[0,.5,1].forEach(g=>{const y=pad+(H-pad)*(1-g);s+=`<line x1="${pad}" y1="${y}" x2="${W}" y2="${y}" stroke="#1d4a5e"/><text x="${pad-4}" y="${y+3}" fill="#5a7e8c" font-size="9" text-anchor="end">${Math.round(mx*g)}</text>`;});}
+  vals.forEach((v,i)=>{const h=(H-pad)*sc(v),x=pad+4+i*bw,y=pad+(H-pad)-h;const col=opt.colorFn?opt.colorFn(i):null;
+    s+=`<rect ${col?'':'class="ihbar" '}x="${x}" y="${y}" width="${bw-6}" height="${h}" rx="2"${col?` fill="${col}"`:''}/>`;
+    s+=`<text x="${x+(bw-6)/2}" y="${y-3}" fill="#eaf4f6" font-size="9.5" text-anchor="middle">${v.toLocaleString()}</text>`;
+    s+=`<text x="${x+(bw-6)/2}" y="${H+4}" fill="#84a6b3" font-size="9" text-anchor="middle">${svgEsc(labels[i])}</text>`;});
+  if(opt.xlab)s+=`<text x="${pad+(W-pad)/2}" y="${H+19}" fill="#5a7e8c" font-size="9.5" text-anchor="middle">${svgEsc(opt.xlab)}</text>`;
+  return s+`</svg>`;
+}
+function chartLifeStage(){          // A: VOC_LIFE order = adult, male-with-brood, subadult, juvenile
+  const c=[0,0,0,0];for(let i=0;i<ROWS.length;i++){const e=EXTRA2[i];if(e&&e[6]>=0&&e[6]<4)c[e[6]]++;}
+  return _barChart(['adult','brooding \u2642','subadult','juvenile'],c,{sqrt:true,xlab:'life stage (\u221a-scaled)',colorFn:i=>i===1?'#f2c14e':'#ec7551'});
+}
+function chartSex(){                // D
+  const c=[0,0,0];for(const d of ROWS){if(d[5]===0)c[0]++;else if(d[5]===1)c[1]++;else c[2]++;}
+  return _barChart(['male','female','unknown'],c,{xlab:'recorded sex',colorFn:i=>['#4fd1c5','#ec7551','#3d5a66'][i]});
+}
+function chartDepth(){              // E: KML altitude field, |m| binned; nulls excluded
+  const c=new Array(8).fill(0);for(const d of ROWS){if(d[2]==null)continue;c[Math.min(7,Math.floor(Math.abs(d[2])/5))]++;}
+  return _barChart(['0\u20135','5\u201310','10\u201315','15\u201320','20\u201325','25\u201330','30\u201335','35+'],c,{xlab:'depth (m) \u00b7 149 no-depth records excluded'});
+}
+function chartMatch(){              // F: VOC_MATCH; visual = inspection(3)+matcher(4)
+  const c=[0,0,0,0];for(let i=0;i<ROWS.length;i++){const e=EXTRA2[i];if(!e)continue;const m=e[7];
+    if(m===0)c[0]++;else if(m===1)c[1]++;else if(m===2)c[2]++;else if(m===3||m===4)c[3]++;}
+  return _barChart(['pattern','unmatched','unknown','visual'],c,{sqrt:true,xlab:'identification method (\u221a-scaled)',colorFn:i=>i===0?'#4fd1c5':i===1?'#f2c14e':'#3d5a66'});
+}
+function chartSeason(){             // C: monthly totals (bars) + brooding-male count (line, own scale)
+  const tot=new Array(12).fill(0),br=new Array(12).fill(0);
+  for(let i=0;i<ROWS.length;i++){const m=ROWS[i][4];if(!m)continue;tot[m-1]++;const e=EXTRA2[i];if(e&&e[6]===1)br[m-1]++;}
+  const W=700,H=220,pad=34,bw=(W-pad-8)/12,mx=Math.max(1,...tot),bmx=Math.max(1,...br);
+  let s=`<svg viewBox="0 0 ${W} ${H+26}">`;
+  [0,.5,1].forEach(g=>{const y=pad+(H-pad)*(1-g);s+=`<line x1="${pad}" y1="${y}" x2="${W-40}" y2="${y}" stroke="#1d4a5e"/><text x="${pad-4}" y="${y+3}" fill="#5a7e8c" font-size="9" text-anchor="end">${Math.round(mx*g)}</text><text x="${W-36}" y="${y+3}" fill="#f2c14e" font-size="9">${Math.round(bmx*g)}</text>`;});
+  tot.forEach((v,i)=>{const h=(H-pad)*(v/mx),x=pad+4+i*bw,y=pad+(H-pad)-h;
+    s+=`<rect x="${x}" y="${y}" width="${bw-6}" height="${h}" rx="2" fill="rgba(236,117,81,.42)"/>`;
+    s+=`<text x="${x+(bw-6)/2}" y="${H+4}" fill="#84a6b3" font-size="9" text-anchor="middle">${MONTHS[i]}</text>`;});
+  const X=i=>pad+4+i*bw+(bw-6)/2,Yb=v=>pad+(H-pad)*(1-v/bmx);
+  s+=`<path d="M${br.map((v,i)=>`${X(i).toFixed(1)} ${Yb(v).toFixed(1)}`).join(' L')}" fill="none" stroke="#f2c14e" stroke-width="2"/>`;
+  br.forEach((v,i)=>{s+=`<circle cx="${X(i)}" cy="${Yb(v)}" r="2.6" fill="#f2c14e"/>`;});
+  s+=`<text x="${pad}" y="${H+21}" fill="#84a6b3" font-size="9.5">bars: all sightings (left axis)</text>`;
+  s+=`<text x="${W-40}" y="${H+21}" fill="#f2c14e" font-size="9.5" text-anchor="end">line: brooding \u2642 (right axis)</text>`;
+  return s+`</svg>`;
+}
 function buildInsights(){
   const body=document.getElementById('insightsBody');
   const cards=[
@@ -8047,8 +8104,13 @@ function buildInsights(){
     ['Discovery curve','Distinct individuals identified as encounters accumulate over time. Still climbing at the end \u2014 the catalogue is far from saturated, so new animals keep turning up with more diving.',chartDiscovery(),'bar'],
     ['Re-sighting interval','Gap between an animal\u2019s consecutive sightings. Overwhelmingly within a month \u2014 divers re-shoot the same residents in tight bursts \u2014 with a thin tail past two years. (\u221a-scaled so the tail stays visible.)',chartInterval(),'bar'],
     ['Longest residency span','Individuals with the greatest time between first and last sighting. NSW-0689 spans 8+ years. Long spans mean strong, persistent site fidelity \u2014 the same animal re-found season after season.',chartTenure(),'bar'],
-    ['Site \u00d7 year coverage','Sightings per dive site per year \u2014 essentially a map of where and when divers logged effort. Sites switch on as the community adopts them; The Steps dominates throughout.',chartSiteYear(),'matrixHeat'],
+    ['Site \u00d7 year coverage','Sightings per dive site per year \u2014 essentially a map of where and when divers logged effort. Sites switch on as the community adopts them; Kurnell dominates throughout.',chartSiteYear(),'matrixHeat'],
     ['Site-to-site movement','Consecutive sightings of each animal counted as moves between sites (rows = from, columns = to). The grey diagonal (stayed put) dwarfs the coloured off-diagonal \u2014 overwhelming site fidelity, rare switching.',chartTransitions(),'matrixMove'],
+    ['Life-stage composition','Every sighting by maturity/breeding class (\u221a-scaled so small classes stay visible). Brooding males \u2014 carrying eggs on the tail \u2014 are the one unambiguous breeding signal in the catalogue; the seasonality chart shows when they appear.',chartLifeStage(),'bar'],
+    ['Seasonality \u00d7 brooding phenology','Sightings per calendar month (bars) are fairly flat \u2014 mostly dive effort, not biology. But brooding males (amber line, its own right-hand scale) surge in the austral spring\u2013summer (Sep\u2013Jan) and all but vanish Mar\u2013May: a real breeding-season signal pulled clear of the effort baseline.',chartSeason(),'wide'],
+    ['Sex composition','Recorded sex across all sightings. Males slightly outnumber females, ~24% undetermined. Sex is an observer call from photos, so \u201cunknown\u201d tracks image quality, not a true third class.',chartSex(),'bar'],
+    ['Depth distribution','Recorded dive depth (KML altitude field); 149 no-depth records excluded. A tight mode at 10\u201315 m mirrors where divers work the reef \u2014 read as survey depth, not the animals\u2019 full range.',chartDepth(),'bar'],
+    ['Identification provenance','How each sighting was matched to an individual (\u221a-scaled). Pattern-matching dominates; \u201cunmatched\u201d are first encounters and pair with the 43 unidentified records flagged in Data Quality.',chartMatch(),'bar'],
   ];
   body.innerHTML=cards.map(([t,sub,svg,kind])=>{
     const wide=(kind!=='bar');
