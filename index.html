@@ -7150,8 +7150,18 @@ const POSFLAG={"46b99cc7-0b72-4a36-9b99-8a60fa352bf8": 1, "c01d0aa9-e9af-4af5-aa
 
 /* ---------- Map ---------- */
 const map=L.map('map',{zoomControl:true,preferCanvas:true}).setView([-33.7926,151.3030],15);
-L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
-  {attribution:'© OpenStreetMap, © CARTO · data: Seadragon Search · bathymetry: NSW DCCEEW (SEED)',maxZoom:19,subdomains:'abcd'}).addTo(map);
+// CARTO raster tiles need an API key since 23 Sep 2026 (keyless = "API KEY REQUIRED" watermark).
+// Paste a free non-commercial key from https://carto.com/basemaps/apikey to use CARTO dark_all;
+// leave blank to fall back to keyless Esri World Dark Gray (native zoom 16, upscaled beyond).
+const CARTO_KEY='';
+const DATA_ATTR=' · data: Seadragon Search · bathymetry: NSW DCCEEW (SEED)';
+if(CARTO_KEY){
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png?key='+CARTO_KEY,
+    {attribution:'© OpenStreetMap, © CARTO'+DATA_ATTR,maxZoom:19,subdomains:'abcd'}).addTo(map);
+}else{
+  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',
+    {attribution:'Tiles © Esri, HERE, Garmin, © OpenStreetMap'+DATA_ATTR,maxZoom:19,maxNativeZoom:16}).addTo(map);
+}
 
 /* ---- SEED bathymetry: live ArcGIS services stacked, master + per-layer control ---- */
 const SEED=[
