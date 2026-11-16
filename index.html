@@ -138,6 +138,8 @@ header .count .sep{color:var(--faint);margin:0 8px;font-family:'Inter'}
 .leaflet-control-attribution{background:rgba(6,20,29,.7)!important;color:var(--faint)!important}
 .leaflet-control-attribution a{color:var(--muted)!important}
 .dot{border-radius:50%;border:1.5px solid rgba(255,255,255,.55);box-shadow:0 0 6px rgba(0,0,0,.4)}
+.dot.sm{border-width:1px;box-shadow:0 0 3px rgba(0,0,0,.45)}
+.stack{border-radius:50%;border:2px solid;background:rgba(6,22,32,.55);box-shadow:0 0 4px rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;font:700 9px 'Inter',sans-serif;color:#fff}
 .cluster{border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Inter';font-weight:600;color:var(--abyss);border:2px solid rgba(255,255,255,.4)}
 #focusBanner{position:absolute;top:12px;left:50%;transform:translateX(-50%);z-index:500;
   background:var(--panel2);border:1px solid var(--teal);border-radius:9px;padding:8px 14px;
@@ -8346,19 +8348,40 @@ function render(){
       m.bindPopup(popup);ms.push(m);
     }
   } else {
-    // Un-clustered: sightings sharing one exact coordinate (site-level GPS) are fanned out
-    // on a small sunflower spiral (~6 m * sqrt(k)) so each stays clickable.
-    const dup={};
-    for(const d of viewRows){
-      const sx=SEX[d[5]];
-      let la=d[0],lo=d[1];
-      if(F.noCluster){
-        const key=la+','+lo,k=dup[key]=(dup[key]||0)+1;
-        if(k>1){const r=6*Math.sqrt(k-1),a=(k-1)*2.39996;
-          la+=r*Math.cos(a)/111320;lo+=r*Math.sin(a)/(111320*Math.cos(la*Math.PI/180));}
+    // Un-clustered: sightings sharing one exact coordinate (usually a site-assigned point,
+    // not a real GPS fix) are drawn as ONE hollow ring with a count; its popup lists them.
+    let singles=viewRows;
+    if(F.noCluster){
+      const stk={};
+      for(const d of viewRows)(stk[d[0]+','+d[1]]=stk[d[0]+','+d[1]]||[]).push(d);
+      singles=[];
+      for(const k in stk){
+        const g=stk[k];
+        if(g.length===1){singles.push(g[0]);continue;}
+        const sexes=new Set(g.map(d=>d[5])),col=sexes.size===1?SEX[g[0][5]].col:'#e8e3d6';
+        const ids=new Set(g.filter(d=>d[8]>=0).map(d=>d[8]));
+        const s=Math.round(14+Math.min(12,Math.sqrt(g.length)*2));
+        const lbl=F.label.size?`${g.length} sightings · ${ids.size} ind.`:'';
+        const list=g.slice().sort((a,b)=>((b[3]||0)*13+(b[4]||0))-((a[3]||0)*13+(a[4]||0))).map(d=>{
+          const dt=d[3]?`${d[3]}${d[4]?'-'+String(d[4]).padStart(2,'0'):''}`:'date ?';
+          const who=d[8]>=0?`<a href="#" onclick="focusIndiv(${d[8]});return false">${IND_NAMES[d[8]]}</a>`:'unmatched';
+          const dep=d[2]!=null?` · ${Math.abs(d[2]).toFixed(0)} m`:'';
+          return `<div class="prow">${dt} · ${who} · ${SEX[d[5]].name}${dep} · <a href="https://wildbook.seadragonsearch.org/encounters/encounter.jsp?number=${d[7]}" target="_blank" rel="noopener">record</a></div>`;}).join('');
+        const html=`<div class="pdate">${g.length} sightings at one point</div>
+          <div class="prow">${SITES[g[0][6]]} · <b>${ids.size}</b> individuals</div>
+          <div class="prow" style="opacity:.7">Same coordinates — usually the site's standard point, not a GPS fix.</div>
+          <div style="max-height:220px;overflow:auto;margin-top:4px">${list}</div>`;
+        const m=L.marker([g[0][0],g[0][1]],{icon:L.divIcon({className:'',iconSize:[s,s],
+          html:`<div class="stack" style="width:${s}px;height:${s}px;border-color:${col}">${g.length}</div>${labelHtml(lbl,s+2)}`})});
+        m.bindPopup(html,{maxWidth:340});ms.push(m);
       }
-      const m=L.marker([la,lo],{icon:L.divIcon({className:'',iconSize:[12,12],
-        html:`<div class="dot" style="width:12px;height:12px;background:${sx.col}"></div>${labelHtml(sightLabel(d),14)}`})});
+    }
+    for(const d of singles){
+      const sx=SEX[d[5]];
+      const la=d[0],lo=d[1];
+      const ds=F.noCluster?7:12;   // smaller dots when un-grouped
+      const m=L.marker([la,lo],{icon:L.divIcon({className:'',iconSize:[ds,ds],
+        html:`<div class="dot${F.noCluster?' sm':''}" style="width:${ds}px;height:${ds}px;background:${sx.col}"></div>${labelHtml(sightLabel(d),ds+2)}`})});
       const dep=d[2]!=null?`${Math.abs(d[2]).toFixed(1)} m`:'—';
       const dt=d[3]?`${d[3]}${d[4]?'-'+String(d[4]).padStart(2,'0'):''}`:'Date unknown';
       const n=d[8]>=0?COUNTS[d[8]]:0;
