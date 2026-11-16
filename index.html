@@ -8319,9 +8319,25 @@ function render(){
         .bindPopup(`<div class="pdate">Individual ${IND_NAMES[idx]}</div><div class="prow">Only one site in current filters \u2014 widen filters to see its switches.</div><button class="popbtn" onclick="focusIndiv(${idx})">Track this individual →</button>`).addTo(lineLayer);
     }
   } else if(F.mode==='individuals'&&F.focus==null){
-    for(const key in groups){
+    // Animals whose sightings all sit on one shared (site-assigned) point land on the same spot.
+    // Fan them out on a sunflower spiral in SCREEN pixels (via iconAnchor), so the spread stays
+    // readable at every zoom and the true point is kept; a small ring marks that point.
+    const pos={},stackN={},stackR={},stackK={};
+    const rOf=g=>Math.min(27,8+Math.sqrt(g.length)*2.4);
+    for(const key in groups){const g=groups[key],la=median(g.map(d=>d[0])),lo=median(g.map(d=>d[1]));
+      const pk=la.toFixed(6)+','+lo.toFixed(6);pos[key]=[la,lo,pk];
+      stackN[pk]=(stackN[pk]||0)+1;stackR[pk]=Math.max(stackR[pk]||0,rOf(g));}
+    if(!F.noCluster)for(const pk in stackN)stackN[pk]=1;   // grouped mode: the cluster plugin handles stacks
+    for(const pk in stackN)if(stackN[pk]>1){const [a,b]=pk.split(',').map(Number);
+      L.marker([a,b],{interactive:false,icon:L.divIcon({className:'',iconSize:[8,8],
+        html:'<div style="width:8px;height:8px;border-radius:50%;border:1.5px solid rgba(255,255,255,.8);box-sizing:border-box"></div>'})}).addTo(lineLayer);}
+    const keys=Object.keys(groups).sort((x,y)=>groups[y].length-groups[x].length); // busiest animals nearest the point
+    for(const key of keys){
       const idx=+key,g=groups[key];
-      const lat=median(g.map(d=>d[0])),lng=median(g.map(d=>d[1]));
+      const [lat,lng,pk]=pos[key];
+      let dx=0,dy=0;
+      if(stackN[pk]>1){const k=(stackK[pk]=(stackK[pk]||0)+1),c=stackR[pk]*1.15+2,ang=k*2.39996;
+        dx=c*Math.sqrt(k)*Math.cos(ang);dy=c*Math.sqrt(k)*Math.sin(ang);}
       const sx=SEX[modalSex(g)];
       const ys=g.filter(d=>d[3]).map(d=>d[3]);
       const fy=ys.length?Math.min(...ys):null,ly=ys.length?Math.max(...ys):null;
@@ -8342,8 +8358,8 @@ function render(){
         ${fy?`<div class="prow">Years · <b>${fy}${ly&&ly!==fy?'–'+ly:''}</b></div>`:''}
         <button class="popbtn" onclick="focusIndiv(${idx})">Track this individual →</button>
         <a href="${url}" target="_blank" rel="noopener">View latest record →</a>`;
-      const r=Math.min(27,8+Math.sqrt(g.length)*2.4);
-      const m=L.marker([lat,lng],{icon:L.divIcon({className:'',iconSize:[r*2,r*2],
+      const r=rOf(g);
+      const m=L.marker([lat,lng],{icon:L.divIcon({className:'',iconSize:[r*2,r*2],iconAnchor:[r-dx,r-dy],popupAnchor:[dx,dy-r],
         html:`<div class="dot idot" style="width:${r*2}px;height:${r*2}px;background:${sx.col}"><span>${g.length>1?g.length:''}</span></div>${labelHtml(indLabel(idx,g),r*2+2)}`})});
       m.bindPopup(popup);ms.push(m);
     }
