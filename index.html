@@ -356,6 +356,7 @@ header .count .sep{color:var(--faint);margin:0 8px;font-family:'Inter'}
         <label class="lopt"><input type="checkbox" value="site"><span>Dive site</span></label>
       </div>
       <div class="note">Tick any combination — each picked field is printed beside every dot, joined by &middot;. Hidden while points are clustered — zoom in to reveal.</div>
+      <label class="opt" style="margin-top:9px"><input type="checkbox" id="noClusterChk"><span>Show every dot (no grouping)</span></label>
       <label class="opt" style="margin-top:9px"><input type="checkbox" id="heatChk"><span>Heatmap (density)</span></label>
       <div class="note">Shades the map by sighting density — diver effort, not abundance. Replaces the dots while on.</div>
       <label class="opt" style="margin-top:9px"><input type="checkbox" id="mapAreaChk"><span>Select by visible map area</span></label>
@@ -8194,6 +8195,8 @@ const cluster=L.markerClusterGroup({maxClusterRadius:42,showCoverageOnHover:fals
   iconCreateFunction:c=>{const n=c.getChildCount();const s=n<10?28:n<100?34:n<1000?42:52;
     return L.divIcon({html:`<div class="cluster" style="width:${s}px;height:${s}px;font-size:${n<1000?12:11}px;background:radial-gradient(circle at 35% 30%,#f2c14e,#ec7551)">${n}</div>`,className:'',iconSize:[s,s]});}});
 map.addLayer(cluster);
+const plainLayer=L.featureGroup();          // un-clustered alternative (F.noCluster)
+function ptLayer(){return F.noCluster?plainLayer:cluster;}
 const lineLayer=L.layerGroup().addTo(map);
 let heatLayer=null;
 let heatPts=[];
@@ -8210,10 +8213,13 @@ function applyHeat(){
       map.addLayer(heatLayer);              // fresh instance (first time, or after toggling off)
     }
     if(map.hasLayer(cluster))map.removeLayer(cluster);
+    if(map.hasLayer(plainLayer))map.removeLayer(plainLayer);
   }else{
     if(heatLayer&&map.hasLayer(heatLayer))map.removeLayer(heatLayer);
     heatLayer=null;                         // drop the removed instance so re-enabling rebuilds it
-    if(!map.hasLayer(cluster))map.addLayer(cluster);
+    const on=ptLayer(),off=on===cluster?plainLayer:cluster;
+    if(map.hasLayer(off))map.removeLayer(off);
+    if(!map.hasLayer(on))map.addLayer(on);
   }
 }
 
@@ -8289,7 +8295,7 @@ function labelHtml(txt,offset){return txt?`<div class="ptlabel" style="left:${of
 
 function render(){
   _mb=F.mapArea?map.getBounds():null;
-  cluster.clearLayers();lineLayer.clearLayers();viewRows=[];const inds=new Set();
+  cluster.clearLayers();plainLayer.clearLayers();lineLayer.clearLayers();viewRows=[];const inds=new Set();
   const yc={},mc=new Array(13).fill(0),db={};const groups={};
   for(const d of ROWS){
     if(!passes(d))continue;viewRows.push(d);
@@ -8340,9 +8346,18 @@ function render(){
       m.bindPopup(popup);ms.push(m);
     }
   } else {
+    // Un-clustered: sightings sharing one exact coordinate (site-level GPS) are fanned out
+    // on a small sunflower spiral (~6 m * sqrt(k)) so each stays clickable.
+    const dup={};
     for(const d of viewRows){
       const sx=SEX[d[5]];
-      const m=L.marker([d[0],d[1]],{icon:L.divIcon({className:'',iconSize:[12,12],
+      let la=d[0],lo=d[1];
+      if(F.noCluster){
+        const key=la+','+lo,k=dup[key]=(dup[key]||0)+1;
+        if(k>1){const r=6*Math.sqrt(k-1),a=(k-1)*2.39996;
+          la+=r*Math.cos(a)/111320;lo+=r*Math.sin(a)/(111320*Math.cos(la*Math.PI/180));}
+      }
+      const m=L.marker([la,lo],{icon:L.divIcon({className:'',iconSize:[12,12],
         html:`<div class="dot" style="width:12px;height:12px;background:${sx.col}"></div>${labelHtml(sightLabel(d),14)}`})});
       const dep=d[2]!=null?`${Math.abs(d[2]).toFixed(1)} m`:'—';
       const dt=d[3]?`${d[3]}${d[4]?'-'+String(d[4]).padStart(2,'0'):''}`:'Date unknown';
@@ -8363,7 +8378,7 @@ function render(){
       m.bindPopup(html);ms.push(m);
     }
   }
-  cluster.addLayers(ms);
+  if(F.noCluster)ms.forEach(m=>plainLayer.addLayer(m));else cluster.addLayers(ms);
   document.getElementById('cEnc').textContent=viewRows.length.toLocaleString();
   document.getElementById('cInd').textContent=inds.size.toLocaleString();
   // ----- Depth aggregates for the three depth views (depth 0 = not recorded) -----
@@ -8652,7 +8667,7 @@ const hSl=dual('hrMin','hrMax','hrFill',0,23,(a,b)=>{F.hr=[a,b];hrLo.textContent
 resetYear.onclick=()=>{F.yr=[YMIN,YMAX];ySl.reset();render();};
 resetDepth.onclick=()=>{F.dp=[0,DMAX];dSl.reset();render();};
 resetHr.onclick=()=>{F.hr=[0,23];hSl.reset();render();};
-resetAll.onclick=()=>{F.sex=new Set([0,1,2]);F.site=new Set(SITES.map((s,i)=>i));F.months.clear();F.yr=[YMIN,YMAX];F.dp=[0,DMAX];F.hr=[0,23];F.minSight=1;F.focus=null;F.mode='sightings';F.depthView='profile';F.switchers=false;F.mapArea=false;F.poly=null;F.heat=false;F.label.clear();
+resetAll.onclick=()=>{F.sex=new Set([0,1,2]);F.site=new Set(SITES.map((s,i)=>i));F.months.clear();F.yr=[YMIN,YMAX];F.dp=[0,DMAX];F.hr=[0,23];F.minSight=1;F.focus=null;F.mode='sightings';F.depthView='profile';F.switchers=false;F.mapArea=false;F.poly=null;F.heat=false;F.noCluster=false;F.label.clear();
   F.life=new Set(VOC_LIFE.map((_,i)=>i));F.status=new Set(VOC_STATUS.map((_,i)=>i));F.work=new Set(VOC_WORK.map((_,i)=>i));F.match=new Set(VOC_MATCH.map((_,i)=>i));F.person='';F.pos=new Set([0,1]);
   {const ps=document.getElementById('personSearch');if(ps)ps.value='';}
   document.querySelectorAll('#lifeGroup input,#statusGroup input,#matchGroup input,#workGroup input,#posGroup input').forEach(cb=>cb.checked=true);
@@ -8662,7 +8677,7 @@ resetAll.onclick=()=>{F.sex=new Set([0,1,2]);F.site=new Set(SITES.map((s,i)=>i))
   document.getElementById('modeNote').textContent='Every dot is one sighting.';
   ySl.reset();dSl.reset();hSl.reset();document.getElementById('msMin').value=1;document.getElementById('msMin').oninput();
   document.getElementById('focusBanner').style.display='none';
-  document.querySelectorAll('.opt input').forEach(c=>c.checked=true);document.getElementById('switchChk').checked=false;document.getElementById('mapAreaChk').checked=false;document.getElementById('heatChk').checked=false;document.getElementById('focusBanner').style.display='none';clearDrawArea();updateFilterCounts();render();};
+  document.querySelectorAll('.opt input').forEach(c=>c.checked=true);document.getElementById('switchChk').checked=false;document.getElementById('mapAreaChk').checked=false;document.getElementById('heatChk').checked=false;document.getElementById('noClusterChk').checked=false;document.getElementById('focusBanner').style.display='none';clearDrawArea();updateFilterCounts();render();};
 document.getElementById('resetHdr').onclick=()=>document.getElementById('resetAll').click();
 window.addEventListener('resize',()=>{applyListW();clearTimeout(window.__rz);window.__rz=setTimeout(()=>{if(F.depthView==='spread')drawDepthPanel();if(expandWhich)refreshExpand();},200);});
 function refreshExpand(){const body=document.getElementById('expandBody');if(!body)return;
@@ -8692,6 +8707,7 @@ document.getElementById('scrim2').onclick=closeOverlays;
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeOverlays();});
 document.getElementById('mapAreaChk').onchange=e=>{F.mapArea=e.target.checked;render();};
 document.getElementById('heatChk').onchange=e=>{F.heat=e.target.checked;render();};
+document.getElementById('noClusterChk').onchange=e=>{F.noCluster=e.target.checked;render();};
 map.on('moveend',()=>{if(F.mapArea)render();});
 const drawLayer=L.layerGroup().addTo(map);
 let drawMode=false,drawing=false,drawPts=[],drawLine=null;
